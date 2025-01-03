@@ -1,0 +1,294 @@
+# SISTEMA DE ADMINISTRACIÓN DE KIOSKS
+Versión: 3.1.0
+Fecha: [fecha_actual]
+
+-------------------
+PARTE I: DOCUMENTACIÓN BASE
+-------------------
+
+## 1. INTRODUCCIÓN
+
+Sistema de administración para kiosks que utiliza:
+- Arquitectura MVT (Model-View-Template)
+- WebSockets para comunicación en tiempo real
+- Sistema de logs detallado
+- UI responsiva con tarjetas de estado
+- Cumplimiento con estándares GLI e ISO
+
+## 2. ARQUITECTURA MVT
+
+### 2.1 Estructura de Carpetas
+```
+admin_kiosk/
+├── app/
+│   ├── models/            # Modelos (M)
+│   ├── views/            # Vistas (V)
+│   ├── templates/        # Templates (T)
+│   ├── static/          # Archivos estáticos
+│   ├── websocket/       # Manejo de WebSocket
+│   ├── ai/             # Integración de IA
+│   └── __init__.py     # create_app y config
+├── migrations/         # Migraciones BD
+├── scripts/           # Scripts auxiliares
+├── tests/            # Tests unitarios
+├── requirements.txt  # Dependencias
+└── config.py        # Configuración
+```
+
+### 2.2 Base de Datos
+Tablas principales:
+- kiosk: Información principal del Kiosk
+- states: Estados posibles
+- actions: Acciones disponibles
+- kiosk_logs: Registro de eventos
+
+### 2.3 WebSockets
+Endpoint: `/ws/kiosk`
+- Conexión en tiempo real
+- Envío de comandos
+- Monitoreo de estado
+
+### 2.4 Sistema de Correo
+```python
+MAIL_SERVER = "mail.quattropy.net"
+MAIL_PORT = 465
+MAIL_USE_SSL = True
+MAIL_USERNAME = "lm_test@quattropy.net"
+MAIL_PASSWORD = "a123a_*.*"
+```
+
+-------------------
+PARTE II: MEJORAS IMPLEMENTADAS
+-------------------
+
+## 3. ESTRUCTURA DE DATOS MEJORADA
+
+### 3.1 Modelo de Sensores Extendido
+```python
+sensors_data = {
+    # Sistema
+    'cpu_usage': float,      # Porcentaje de uso
+    'ram_usage': float,      # Porcentaje de uso
+    'disk_usage': float,     # Porcentaje de uso
+    
+    # Ambiente
+    'temperature': float,    # Grados Celsius
+    'humidity': float,       # Porcentaje
+    
+    # Red
+    'network': {
+        'latency': int,          # ms
+        'download_speed': float, # Mbps
+        'upload_speed': float,   # Mbps
+        'signal_strength': int   # Porcentaje
+    },
+    
+    # Impresora
+    'printer': {
+        'status': str,          # "ready", "error", "paper_low"
+        'paper_level': int,     # Porcentaje
+        'last_print': datetime  # Última impresión
+    },
+    
+    # UPS
+    'ups': {
+        'status': str,           # "online", "battery", "bypass"
+        'battery_level': int,    # Porcentaje
+        'estimated_runtime': int # Minutos
+    },
+    
+    # Alertas
+    'errors': List[str],   # Errores críticos
+    'warnings': List[str]  # Advertencias
+}
+```
+
+## 4. SISTEMA DE MONITOREO MEJORADO
+
+### 4.1 Umbrales de Alerta
+- CRÍTICO:
+  - CPU > 90%
+  - RAM > 95%
+  - Disco > 95%
+  - Temperatura > 40°C
+  - UPS < 10%
+
+- WARNING:
+  - CPU > 80%
+  - RAM > 85%
+  - Disco > 85%
+  - Temperatura > 35°C
+  - Señal WiFi < 30%
+
+### 4.2 Estados Visuales
+```python
+ESTADOS = {
+    'NORMAL': 'bg-success',
+    'WARNING': 'bg-warning',
+    'CRÍTICO': 'bg-danger',
+    'OFFLINE': 'bg-secondary'
+}
+```
+
+## 5. SISTEMA DE LOGGING AVANZADO
+
+### 5.1 Tipos de Log
+- system.log: Eventos del sistema
+- kiosk.log: Eventos específicos de kiosks
+- websocket.log: Conexiones y mensajes
+- actions.log: Comandos y respuestas
+- error.log: Errores críticos
+
+### 5.2 Formato de Log
+```
+timestamp | hostname | logger | level | message | trace_id | extra_data
+```
+
+## 6. INTERFAZ DE USUARIO MEJORADA
+
+### 6.1 Organización de Tarjeta
+1. ENCABEZADO
+   - Serial Number
+   - Indicador de estado (online/offline)
+   - Ubicación
+   - Estado de última acción
+
+2. MÉTRICAS DE SISTEMA
+   - CPU (barra de progreso)
+   - RAM (barra de progreso)
+   - Disco (barra de progreso)
+
+3. MÉTRICAS DE AMBIENTE
+   - Temperatura (°C)
+   - Humedad (%)
+
+4. INFORMACIÓN DE RED
+   - Latencia (ms)
+   - Velocidad (↓↑ Mbps)
+   - Fuerza de señal (%)
+
+5. ESTADO DE UPS
+   - Nivel de batería
+   - Tiempo estimado
+
+6. ALERTAS
+   - Errores (rojo)
+   - Advertencias (amarillo)
+
+7. ACCIONES
+   - Apagar
+   - Reiniciar
+   - Actualizar
+   - Bloquear
+   - Ver logs
+   - Ver ubicación
+
+## 7. OPTIMIZACIONES
+
+### 7.1 Rendimiento
+- Caché de datos frecuentes
+- Actualización parcial de DOM
+- Compresión de datos WebSocket
+- Rate limiting de comandos
+
+### 7.2 Manejo de Errores
+- Reconexión automática WebSocket
+- Validación de datos
+- Timeout en comandos
+- Registro detallado de errores
+
+## 8. SEGURIDAD MEJORADA
+
+### 8.1 Validaciones
+- Autenticación WebSocket
+- Verificación de comandos
+- Sanitización de datos
+- Rate limiting por kiosk
+
+### 8.2 Auditoría
+- Registro de todas las acciones
+- Tracking de cambios de estado
+- Historial de ubicaciones
+- Log de accesos
+
+## 9. IMPLEMENTACIÓN
+
+### 9.1 Dependencias Adicionales
+```
+flask-socketio==5.3.6
+flask-caching==2.1.0
+flask-limiter==3.5.0
+```
+
+### 9.2 Archivos Modificados
+- models/kiosk.py
+- templates/kiosk/card.html
+- static/js/kiosk_actions.js
+- utils/logger.py
+- utils/exceptions.py
+- middleware/logging.py
+- websocket/kiosk_ws.py
+
+## 10. ESCALABILIDAD Y FUTURO
+
+### 10.1 Escalabilidad
+- Sharding de base de datos
+- Clustering de WebSocket
+- Cache distribuido
+- Load balancing
+
+### 10.2 Monitoreo
+- Métricas de rendimiento
+- Alertas proactivas
+- Dashboard de estado
+- Reportes automáticos
+
+### 10.3 Integración IA
+- Predicción de fallos
+- Análisis de patrones
+- Optimización automática
+- Asistente virtual
+
+## 11. INSTALACIÓN Y DESPLIEGUE
+
+1. Clonar repositorio:
+```bash
+git clone https://github.com/lmrojas/admin_kiosk.git
+cd admin_kiosk
+```
+
+2. Crear entorno virtual:
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# Windows: venv\Scripts\activate
+```
+
+3. Instalar dependencias:
+```bash
+pip install -r requirements.txt
+```
+
+4. Configurar variables de entorno (.env):
+```
+SECRET_KEY=your-secret-key
+DATABASE_URL=postgresql://user:pass@localhost/admin_kiosk
+MAIL_USERNAME=lm_test@quattropy.net
+MAIL_PASSWORD=a123a_*.*
+```
+
+5. Inicializar base de datos:
+```bash
+flask db init
+flask db migrate
+flask db upgrade
+```
+
+6. Ejecutar aplicación:
+```bash
+flask run
+```
+
+-------------------
+FIN DE LA DOCUMENTACIÓN
+------------------- 

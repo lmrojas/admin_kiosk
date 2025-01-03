@@ -1,0 +1,205 @@
+# MEJORAS AL SISTEMA DE ADMINISTRACIÓN DE KIOSKS
+Versión: 1.0.0
+Fecha: [fecha_actual]
+
+## 1. ESTRUCTURA DE DATOS MEJORADA
+
+### 1.1 Modelo de Sensores
+```python
+sensors_data = {
+    # Sistema
+    'cpu_usage': float,      # Porcentaje de uso
+    'ram_usage': float,      # Porcentaje de uso
+    'disk_usage': float,     # Porcentaje de uso
+    
+    # Ambiente
+    'temperature': float,    # Grados Celsius
+    'humidity': float,       # Porcentaje
+    
+    # Red
+    'network': {
+        'latency': int,          # ms
+        'download_speed': float, # Mbps
+        'upload_speed': float,   # Mbps
+        'signal_strength': int   # Porcentaje
+    },
+    
+    # Impresora
+    'printer': {
+        'status': str,          # "ready", "error", "paper_low"
+        'paper_level': int,     # Porcentaje
+        'last_print': datetime  # Última impresión
+    },
+    
+    # UPS
+    'ups': {
+        'status': str,           # "online", "battery", "bypass"
+        'battery_level': int,    # Porcentaje
+        'estimated_runtime': int # Minutos
+    },
+    
+    # Alertas
+    'errors': List[str],   # Errores críticos
+    'warnings': List[str]  # Advertencias
+}
+```
+
+## 2. SISTEMA DE MONITOREO EN TIEMPO REAL
+
+### 2.1 Umbrales de Alerta
+- CRÍTICO:
+  - CPU > 90%
+  - RAM > 95%
+  - Disco > 95%
+  - Temperatura > 40°C
+  - UPS < 10%
+
+- WARNING:
+  - CPU > 80%
+  - RAM > 85%
+  - Disco > 85%
+  - Temperatura > 35°C
+  - Señal WiFi < 30%
+
+### 2.2 Estados Visuales
+```python
+ESTADOS = {
+    'NORMAL': 'bg-success',
+    'WARNING': 'bg-warning',
+    'CRÍTICO': 'bg-danger',
+    'OFFLINE': 'bg-secondary'
+}
+```
+
+## 3. INTERFAZ DE USUARIO MEJORADA
+
+### 3.1 Organización de Tarjeta
+1. ENCABEZADO
+   - Serial Number
+   - Indicador de estado (online/offline)
+   - Ubicación
+   - Estado de última acción
+
+2. MÉTRICAS DE SISTEMA
+   - CPU (barra de progreso)
+   - RAM (barra de progreso)
+   - Disco (barra de progreso)
+
+3. MÉTRICAS DE AMBIENTE
+   - Temperatura (°C)
+   - Humedad (%)
+
+4. INFORMACIÓN DE RED
+   - Latencia (ms)
+   - Velocidad (↓↑ Mbps)
+   - Fuerza de señal (%)
+
+5. ESTADO DE UPS
+   - Nivel de batería
+   - Tiempo estimado
+
+6. ALERTAS
+   - Errores (rojo)
+   - Advertencias (amarillo)
+
+7. ACCIONES
+   - Apagar
+   - Reiniciar
+   - Actualizar
+   - Bloquear
+   - Ver logs
+   - Ver ubicación
+
+## 4. SISTEMA DE LOGGING MEJORADO
+
+### 4.1 Tipos de Log
+- system.log: Eventos del sistema
+- kiosk.log: Eventos específicos de kiosks
+- websocket.log: Conexiones y mensajes
+- actions.log: Comandos y respuestas
+- error.log: Errores críticos
+
+### 4.2 Formato de Log
+```
+timestamp | hostname | logger | level | message | trace_id | extra_data
+```
+
+## 5. ACTUALIZACIÓN EN TIEMPO REAL
+
+### 5.1 WebSocket Events
+```javascript
+{
+    'type': 'update',
+    'serial_number': str,
+    'sensors_data': {...},
+    'timestamp': datetime
+}
+```
+
+### 5.2 Actualizaciones Visuales
+- Transiciones suaves en cambios de valores
+- Cambios de color según umbrales
+- Actualización inmediata de alertas
+
+## 6. MEJORAS DE RENDIMIENTO
+
+### 6.1 Optimizaciones
+- Caché de datos frecuentes
+- Actualización parcial de DOM
+- Compresión de datos WebSocket
+- Rate limiting de comandos
+
+### 6.2 Manejo de Errores
+- Reconexión automática WebSocket
+- Validación de datos
+- Timeout en comandos
+- Registro detallado de errores
+
+## 7. SEGURIDAD
+
+### 7.1 Validaciones
+- Autenticación WebSocket
+- Verificación de comandos
+- Sanitización de datos
+- Rate limiting por kiosk
+
+### 7.2 Auditoría
+- Registro de todas las acciones
+- Tracking de cambios de estado
+- Historial de ubicaciones
+- Log de accesos
+
+## 8. IMPLEMENTACIÓN
+
+### 8.1 Dependencias Adicionales
+```
+flask-socketio==5.3.6
+flask-caching==2.1.0
+flask-limiter==3.5.0
+```
+
+### 8.2 Archivos Modificados
+- models/kiosk.py
+- templates/kiosk/card.html
+- static/js/kiosk_actions.js
+- utils/logger.py
+- utils/exceptions.py
+- middleware/logging.py
+- websocket/kiosk_ws.py
+
+## 9. CONSIDERACIONES FUTURAS
+
+### 9.1 Escalabilidad
+- Sharding de base de datos
+- Clustering de WebSocket
+- Cache distribuido
+- Load balancing
+
+### 9.2 Monitoreo
+- Métricas de rendimiento
+- Alertas proactivas
+- Dashboard de estado
+- Reportes automáticos
+
+---
+FIN DEL DOCUMENTO 
