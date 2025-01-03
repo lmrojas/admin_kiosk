@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+
+{% block title %}Ubicaciones{% endblock %}
+
+{% block header_title %}Ubicaciones{% endblock %}
+
+{% block header_actions %}
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLocationModal">
+    <i class="fas fa-plus me-1"></i>Agregar Ubicación
+</button>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+<style>
+    #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 4px;
+    }
+    
+    .location-card {
+        transition: all 0.3s ease;
+    }
+    .location-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .kiosk-count {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    
+    .location-actions .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .table th {
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <!-- Mapa -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Mapa de Ubicaciones</h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Estadísticas -->
+    <div class="col-md-4">
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Total Ubicaciones</h6>
+                        <h3 class="mb-0">{{ locations|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Kioscos Asignados</h6>
+                        <h3 class="mb-0">{{ total_kiosks }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Promedio Kioscos/Ubicación</h6>
+                        <h3 class="mb-0">{{ "%.1f"|format(avg_kiosks_per_location) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Ubicaciones -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="locationsTable">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Dirección</th>
+                        <th>Latitud</th>
+                        <th>Longitud</th>
+                        <th>Kioscos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for location in locations %}
+                        <tr data-location-id="{{ location.id }}">
+                            <td>{{ location.name }}</td>
+                            <td>{{ location.address }}</td>
+                            <td>{{ "%.6f"|format(location.latitude) }}</td>
+                            <td>{{ "%.6f"|format(location.longitude) }}</td>
+                            <td>
+                                <span class="badge bg-primary">{{ location.kiosks|length }}</span>
+                                {% if location.kiosks %}
+                                    <button type="button" 
+                                            class="btn btn-link btn-sm p-0 ms-1"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#viewKiosksModal"
+                                            data-location-id="{{ location.id }}"
+                                            data-location-name="{{ location.name }}">
+                                        Ver
+                                    </button>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="location-actions">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editLocationModal"
+                                            data-location-id="{{ location.id }}"
+                                            data-location-name="{{ location.name }}"
+                                            data-location-address="{{ location.address }}"
+                                            data-location-lat="{{ location.latitude }}"
+                                            data-location-lng="{{ location.longitude }}"
+                                            title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteLocation('{{ location.id }}')"
+                                            title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Agregar Ubicación -->
+<div class="modal fade" id="addLocationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar Ubicación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addLocationForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="address" name="address" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="latitude" class="form-label">Latitud</label>
+                                <input type="number" class="form-control" id="latitude" name="latitude" step="any" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="longitude" class="form-label">Longitud</label>
+                                <input type="number" class="form-control" id="longitude" name="longitude" step="any" required>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveLocationBtn">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Ubicación -->
+<div class="modal fade" id="editLocationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Ubicación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editLocationForm">
+                    <input type="hidden" id="edit_location_id">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_address" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="edit_address" name="address" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_latitude" class="form-label">Latitud</label>
+                                <input type="number" class="form-control" id="edit_latitude" name="latitude" step="any" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_longitude" class="form-label">Longitud</label>
+                                <input type="number" class="form-control" id="edit_longitude" name="longitude" step="any" required>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="updateLocationBtn">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Kioscos -->
+<div class="modal fade" id="viewKiosksModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Kioscos en <span id="locationName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="kiosksTable">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Serial</th>
+                                <th>Estado</th>
+                                <th>Última Conexión</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kiosksTableBody">
+                            <!-- Los kioscos se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Inicializar DataTable
+    const table = $('#locationsTable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
+        },
+        order: [[0, 'asc']],
+        pageLength: 25
+    });
+    
+    // Inicializar mapa
+    const map = L.map('map');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Agregar marcadores para cada ubicación
+    const markers = [];
+    const bounds = L.latLngBounds();
+    
+    {% for location in locations %}
+        const lat = {{ location.latitude }};
+        const lng = {{ location.longitude }};
+        const name = '{{ location.name }}';
+        const address = '{{ location.address }}';
+        const kioskCount = {{ location.kiosks|length }};
+        
+        const marker = L.marker([lat, lng])
+            .bindPopup(`
+                <strong>${name}</strong><br>
+                ${address}<br>
+                <small class="text-muted">${kioskCount} kioscos</small>
+            `)
+            .addTo(map);
+        
+        markers.push(marker);
+        bounds.extend([lat, lng]);
+    {% endfor %}
+    
+    if (markers.length > 0) {
+        map.fitBounds(bounds);
+    } else {
+        map.setView([0, 0], 2);
+    }
+    
+    // Agregar nueva ubicación
+    $('#saveLocationBtn').click(function() {
+        const formData = {
+            name: $('#name').val(),
+            address: $('#address').val(),
+            latitude: parseFloat($('#latitude').val()),
+            longitude: parseFloat($('#longitude').val())
+        };
+        
+        $.ajax({
+            url: '/location/api/add',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                showNotification('success', 'Ubicación agregada exitosamente');
+                $('#addLocationModal').modal('hide');
+                location.reload();
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al agregar la ubicación';
+                showNotification('danger', message);
+            }
+        });
+    });
+    
+    // Cargar datos para editar ubicación
+    $('#editLocationModal').on('show.bs.modal', function(event) {
+        const button = $(event.relatedTarget);
+        const locationId = button.data('location-id');
+        const name = button.data('location-name');
+        const address = button.data('location-address');
+        const lat = button.data('location-lat');
+        const lng = button.data('location-lng');
+        
+        $('#edit_location_id').val(locationId);
+        $('#edit_name').val(name);
+        $('#edit_address').val(address);
+        $('#edit_latitude').val(lat);
+        $('#edit_longitude').val(lng);
+    });
+    
+    // Actualizar ubicación
+    $('#updateLocationBtn').click(function() {
+        const locationId = $('#edit_location_id').val();
+        const formData = {
+            name: $('#edit_name').val(),
+            address: $('#edit_address').val(),
+            latitude: parseFloat($('#edit_latitude').val()),
+            longitude: parseFloat($('#edit_longitude').val())
+        };
+        
+        $.ajax({
+            url: `/location/api/update/${locationId}`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                showNotification('success', 'Ubicación actualizada exitosamente');
+                $('#editLocationModal').modal('hide');
+                location.reload();
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al actualizar la ubicación';
+                showNotification('danger', message);
+            }
+        });
+    });
+    
+    // Cargar kioscos de una ubicación
+    $('#viewKiosksModal').on('show.bs.modal', function(event) {
+        const button = $(event.relatedTarget);
+        const locationId = button.data('location-id');
+        const locationName = button.data('location-name');
+        
+        $('#locationName').text(locationName);
+        
+        $.ajax({
+            url: `/location/api/kiosks/${locationId}`,
+            method: 'GET',
+            success: function(response) {
+                const tbody = $('#kiosksTableBody');
+                tbody.empty();
+                
+                response.kiosks.forEach(kiosk => {
+                    const row = `
+                        <tr>
+                            <td>${kiosk.name}</td>
+                            <td>${kiosk.serial_number}</td>
+                            <td>
+                                <span class="badge bg-${kiosk.status === 'online' ? 'success' : 'danger'}">
+                                    ${kiosk.status}
+                                </span>
+                            </td>
+                            <td>${kiosk.last_connection ? new Date(kiosk.last_connection).toLocaleString() : 'Nunca'}</td>
+                            <td>
+                                <a href="/kiosk/${kiosk.id}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al cargar los kioscos';
+                showNotification('danger', message);
+            }
+        });
+    });
+});
+
+function deleteLocation(locationId) {
+    if (confirm('¿Está seguro que desea eliminar esta ubicación?')) {
+        $.ajax({
+            url: `/location/api/delete/${locationId}`,
+            method: 'DELETE',
+            success: function(response) {
+                showNotification('success', 'Ubicación eliminada exitosamente');
+                location.reload();
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al eliminar la ubicación';
+                showNotification('danger', message);
+            }
+        });
+    }
+}
+
+function showNotification(type, message) {
+    const alert = $(`<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`);
+    $('.main-content').prepend(alert);
+    
+    setTimeout(() => {
+        alert.alert('close');
+    }, 5000);
+}
+</script>
+{% endblock %} 

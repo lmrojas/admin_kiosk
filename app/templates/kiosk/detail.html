@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}{{ kiosk.name }} - Detalles{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+    #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 4px;
+    }
+    .sensor-card {
+        transition: all 0.3s ease;
+    }
+    .sensor-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    .network-metrics {
+        font-size: 0.9rem;
+    }
+    .history-table {
+        font-size: 0.9rem;
+    }
+    .history-table th {
+        background-color: #f8f9fa;
+    }
+    .progress {
+        height: 10px;
+    }
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">{{ kiosk.name }}</h1>
+            <p class="text-muted mb-0">Serial: {{ kiosk.serial_number }}</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#locationHistoryModal">
+                <i class="fas fa-map-marked-alt me-1"></i>Historial de Ubicaciones
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información General -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Información General</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="metric-label">Estado</div>
+                            <div class="metric-value">
+                                <span class="badge bg-{{ 'success' if kiosk.status == 'online' else 'danger' }}">
+                                    {{ kiosk.status|title }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-label">IP</div>
+                            <div class="metric-value">{{ kiosk.ip_address or 'N/A' }}</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="metric-label">Última Conexión</div>
+                            <div class="metric-value">
+                                {{ kiosk.last_connection.strftime('%d/%m/%Y %H:%M:%S') if kiosk.last_connection else 'Nunca' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Métricas del Sistema -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Métricas del Sistema</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- CPU -->
+                        <div class="col-md-4">
+                            <div class="card sensor-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">CPU</h6>
+                                    {% set cpu = kiosk.sensors_data_dict.cpu_usage|default(0)|float %}
+                                    {% set cpu_class = 'bg-danger' if cpu > 90 else 'bg-warning' if cpu > 80 else 'bg-success' %}
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar {{ cpu_class }}" role="progressbar" style="width: {{ cpu }}%"></div>
+                                    </div>
+                                    <div class="metric-value">{{ "%.1f"|format(cpu) }}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- RAM -->
+                        <div class="col-md-4">
+                            <div class="card sensor-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">RAM</h6>
+                                    {% set ram = kiosk.sensors_data_dict.ram_usage|default(0)|float %}
+                                    {% set ram_class = 'bg-danger' if ram > 95 else 'bg-warning' if ram > 85 else 'bg-success' %}
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar {{ ram_class }}" role="progressbar" style="width: {{ ram }}%"></div>
+                                    </div>
+                                    <div class="metric-value">{{ "%.1f"|format(ram) }}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Disco -->
+                        <div class="col-md-4">
+                            <div class="card sensor-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">Disco</h6>
+                                    {% set disk = kiosk.sensors_data_dict.disk_usage|default(0)|float %}
+                                    {% set disk_class = 'bg-danger' if disk > 95 else 'bg-warning' if disk > 85 else 'bg-success' %}
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar {{ disk_class }}" role="progressbar" style="width: {{ disk }}%"></div>
+                                    </div>
+                                    <div class="metric-value">{{ "%.1f"|format(disk) }}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Temperatura -->
+                        <div class="col-md-6">
+                            <div class="card sensor-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">Ambiente</h6>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            {% set temp = kiosk.sensors_data_dict.temperature|default(0)|float %}
+                                            <div class="metric-label">Temperatura</div>
+                                            <div class="metric-value {{ 'text-danger' if temp > 40 else 'text-warning' if temp > 35 }}">
+                                                {{ "%.1f"|format(temp) }}°C
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            {% set humidity = kiosk.sensors_data_dict.humidity|default(0)|float %}
+                                            <div class="metric-label">Humedad</div>
+                                            <div class="metric-value">{{ "%.1f"|format(humidity) }}%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Red -->
+                        <div class="col-md-6">
+                            <div class="card sensor-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">Red</h6>
+                                    <div class="network-metrics">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="metric-label">Latencia</div>
+                                                <div class="metric-value">{{ kiosk.sensors_data_dict.network.latency|default(0) }}ms</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="metric-label">Señal</div>
+                                                {% set signal = kiosk.sensors_data_dict.network.signal_strength|default(0)|float %}
+                                                <div class="metric-value {{ 'text-warning' if signal < 30 }}">
+                                                    {{ "%.1f"|format(signal) }}%
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="metric-label">Descarga</div>
+                                                <div class="metric-value">{{ "%.1f"|format(kiosk.sensors_data_dict.network.download_speed|default(0)) }} Mbps</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="metric-label">Subida</div>
+                                                <div class="metric-value">{{ "%.1f"|format(kiosk.sensors_data_dict.network.upload_speed|default(0)) }} Mbps</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- UPS -->
+                        {% if kiosk.sensors_data_dict.ups %}
+                        <div class="col-md-12">
+                            <div class="card sensor-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">UPS</h6>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="metric-label">Estado</div>
+                                            <div class="metric-value">{{ kiosk.sensors_data_dict.ups.status|title }}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            {% set battery = kiosk.sensors_data_dict.ups.battery_level|default(0)|float %}
+                                            <div class="metric-label">Batería</div>
+                                            <div class="metric-value {{ 'text-danger' if battery < 10 }}">
+                                                {{ "%.1f"|format(battery) }}%
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="metric-label">Tiempo Estimado</div>
+                                            <div class="metric-value">{{ kiosk.sensors_data_dict.ups.estimated_runtime }} min</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapa y Alertas -->
+    <div class="row">
+        <!-- Mapa -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Ubicación Actual</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertas -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Alertas</h5>
+                </div>
+                <div class="card-body">
+                    {% set alerts = kiosk.calculate_alerts() %}
+                    {% if alerts %}
+                        {% for alert in alerts %}
+                            <div class="alert alert-{{ alert.type }} py-2 px-3 mb-2">
+                                {{ alert.message }}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No hay alertas activas</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historial de Eventos -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Historial de Eventos</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover history-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Mensaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                            <tr>
+                                <td>{{ log.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'danger' if log.event_type == 'error' else 'info' }}">
+                                        {{ log.event_type }}
+                                    </span>
+                                </td>
+                                <td>{{ log.message }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Historial de Ubicaciones -->
+<div class="modal fade" id="locationHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Historial de Ubicaciones</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Tabla de ubicaciones -->
+                    <div class="col-md-5">
+                        <div class="table-responsive" style="max-height: 400px;">
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Ubicación</th>
+                                        <th>Latitud</th>
+                                        <th>Longitud</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for location in kiosk.location_history %}
+                                        <tr class="location-entry" 
+                                            data-lat="{{ location.latitude }}"
+                                            data-lng="{{ location.longitude }}"
+                                            data-name="{{ location.name }}">
+                                            <td>{{ location.name }}</td>
+                                            <td>{{ "%.6f"|format(location.latitude) }}</td>
+                                            <td>{{ "%.6f"|format(location.longitude) }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Mapa de ubicaciones -->
+                    <div class="col-md-7">
+                        <div id="historyMap" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar mapa principal
+    const map = L.map('map');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Inicializar mapa del historial
+    const historyMap = L.map('historyMap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(historyMap);
+
+    // Agregar marcador de ubicación actual
+    {% if kiosk.current_location %}
+        const currentLocation = [{{ kiosk.current_location.latitude }}, {{ kiosk.current_location.longitude }}];
+        L.marker(currentLocation)
+            .bindPopup('{{ kiosk.current_location.name }}')
+            .addTo(map);
+        map.setView(currentLocation, 13);
+    {% else %}
+        map.setView([0, 0], 2);
+    {% endif %}
+
+    // Manejar el historial de ubicaciones
+    const markers = [];
+    const bounds = L.latLngBounds();
+
+    document.querySelectorAll('.location-entry').forEach(entry => {
+        const lat = parseFloat(entry.dataset.lat);
+        const lng = parseFloat(entry.dataset.lng);
+        const name = entry.dataset.name;
+
+        if (lat && lng) {
+            const marker = L.marker([lat, lng])
+                .bindPopup(name)
+                .addTo(historyMap);
+            
+            markers.push(marker);
+            bounds.extend([lat, lng]);
+
+            // Resaltar ubicación al pasar el mouse
+            entry.addEventListener('mouseenter', () => {
+                marker.openPopup();
+                entry.style.backgroundColor = '#f8f9fa';
+            });
+            entry.addEventListener('mouseleave', () => {
+                marker.closePopup();
+                entry.style.backgroundColor = '';
+            });
+        }
+    });
+
+    if (markers.length > 0) {
+        historyMap.fitBounds(bounds);
+    } else {
+        historyMap.setView([0, 0], 2);
+    }
+
+    // Actualizar mapas cuando se muestra el modal
+    const locationModal = document.getElementById('locationHistoryModal');
+    locationModal.addEventListener('shown.bs.modal', () => {
+        historyMap.invalidateSize();
+    });
+});
+</script>
+{% endblock %} 

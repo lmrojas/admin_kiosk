@@ -1,15 +1,168 @@
-{% macro kiosk_card(kiosk) %}
-<div class="card mb-3">
-    <div class="card-header bg-{{ 'success' if kiosk.status == 'online' else 'danger' }}">
-        <h5 class="card-title text-white mb-0">{{ kiosk.name }}</h5>
+{% macro render_kiosk_card(kiosk) %}
+<div class="card h-100" data-kiosk-id="{{ kiosk.id }}">
+    <!-- 1. ENCABEZADO -->
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title mb-0">{{ kiosk.name }}</h5>
+                <small class="text-muted">SN: {{ kiosk.serial_number }}</small>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-{{ 'success' if kiosk.status == 'online' else 'danger' }} status-badge">
+                    {{ kiosk.status|title }}
+                </span>
+                {% if kiosk.last_action_state %}
+                    <div><small class="text-muted action-state">{{ kiosk.last_action_state }}</small></div>
+                {% endif %}
+            </div>
+        </div>
     </div>
+    
     <div class="card-body">
-        <p class="card-text">
-            <strong>IP:</strong> {{ kiosk.ip_address }}<br>
-            <strong>Estado:</strong> {{ kiosk.status }}<br>
-            <strong>Última conexión:</strong> {{ kiosk.last_connection.strftime('%Y-%m-%d %H:%M:%S') }}
-        </p>
-        <button class="btn btn-primary btn-sm" onclick="refreshKiosk('{{ kiosk.id }}')">Actualizar</button>
+        <!-- 2. MÉTRICAS DE SISTEMA -->
+        {% if kiosk.sensors_data_dict %}
+            <div class="mb-3">
+                <h6 class="card-subtitle mb-2">Sistema</h6>
+                <div class="progress mb-2" style="height: 20px;">
+                    {% set cpu = kiosk.sensors_data_dict.cpu_usage|default(0) %}
+                    {% set cpu_class = 'bg-danger' if cpu > 90 else 'bg-warning' if cpu > 80 else 'bg-success' %}
+                    <div class="progress-bar {{ cpu_class }} cpu-bar" role="progressbar" style="width: {{ cpu }}%" data-value="{{ cpu }}">
+                        CPU: {{ cpu }}%
+                    </div>
+                </div>
+                <div class="progress mb-2" style="height: 20px;">
+                    {% set ram = kiosk.sensors_data_dict.ram_usage|default(0) %}
+                    {% set ram_class = 'bg-danger' if ram > 95 else 'bg-warning' if ram > 85 else 'bg-success' %}
+                    <div class="progress-bar {{ ram_class }} ram-bar" role="progressbar" style="width: {{ ram }}%" data-value="{{ ram }}">
+                        RAM: {{ ram }}%
+                    </div>
+                </div>
+                <div class="progress mb-2" style="height: 20px;">
+                    {% set disk = kiosk.sensors_data_dict.disk_usage|default(0) %}
+                    {% set disk_class = 'bg-danger' if disk > 95 else 'bg-warning' if disk > 85 else 'bg-success' %}
+                    <div class="progress-bar {{ disk_class }} disk-bar" role="progressbar" style="width: {{ disk }}%" data-value="{{ disk }}">
+                        Disco: {{ disk }}%
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. MÉTRICAS DE AMBIENTE -->
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">Temperatura</small>
+                        {% set temp = kiosk.sensors_data_dict.temperature|default(0) %}
+                        <strong class="{{ 'text-danger' if temp > 40 else 'text-warning' if temp > 35 }} temp-value">
+                            {{ temp }}°C
+                        </strong>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">Humedad</small>
+                        <strong class="humidity-value">{{ kiosk.sensors_data_dict.humidity|default(0) }}%</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. INFORMACIÓN DE RED -->
+            <div class="mb-3">
+                <h6 class="card-subtitle mb-2">Red</h6>
+                <div class="row g-2">
+                    <div class="col-4">
+                        <div class="border rounded p-2">
+                            <small class="text-muted d-block">Latencia</small>
+                            <strong class="latency-value">{{ kiosk.sensors_data_dict.network.latency|default(0) }}ms</strong>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border rounded p-2">
+                            <small class="text-muted d-block">Velocidad</small>
+                            <strong class="speed-value">↓{{ kiosk.sensors_data_dict.network.download_speed|default(0) }}Mbps</strong>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border rounded p-2">
+                            <small class="text-muted d-block">Señal</small>
+                            {% set signal = kiosk.sensors_data_dict.network.signal_strength|default(0) %}
+                            <strong class="{{ 'text-warning' if signal < 30 }} signal-value">
+                                {{ signal }}%
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. ESTADO DE UPS -->
+            {% if kiosk.sensors_data_dict.ups %}
+            <div class="mb-3 ups-section">
+                <h6 class="card-subtitle mb-2">UPS</h6>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <small class="text-muted d-block">Batería</small>
+                            {% set battery = kiosk.sensors_data_dict.ups.battery_level|default(0) %}
+                            <strong class="{{ 'text-danger' if battery < 10 }} battery-value">
+                                {{ battery }}%
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <small class="text-muted d-block">Tiempo Est.</small>
+                            <strong class="runtime-value">{{ kiosk.sensors_data_dict.ups.estimated_runtime|default(0) }}min</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 6. ALERTAS -->
+            <div class="alerts-section mb-3">
+                {% for error in kiosk.sensors_data_dict.errors|default([]) %}
+                    <div class="alert alert-danger py-1 px-2 mb-1">{{ error }}</div>
+                {% endfor %}
+                {% for warning in kiosk.sensors_data_dict.warnings|default([]) %}
+                    <div class="alert alert-warning py-1 px-2 mb-1">{{ warning }}</div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-muted">
+                <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                <p>No hay datos de sensores disponibles</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- 7. ACCIONES -->
+    <div class="card-footer">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <a href="{{ url_for('kiosk.detail', kiosk_id=kiosk.id) }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-eye me-1"></i>Ver Detalles
+                </a>
+                <a href="{{ url_for('location.kiosk_history', kiosk_id=kiosk.id) }}" class="btn btn-info btn-sm ms-1">
+                    <i class="fas fa-history me-1"></i>Historial
+                </a>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-cog me-1"></i>Acciones
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% for action in actions %}
+                        <li>
+                            <button class="dropdown-item action-btn" type="button" 
+                                    data-action-id="{{ action.id }}"
+                                    data-action-name="{{ action.name }}"
+                                    data-requires-confirmation="{{ action.requires_confirmation|tojson }}">
+                                <i class="{{ action.icon_class }} me-1"></i>{{ action.name }}
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 {% endmacro %} 

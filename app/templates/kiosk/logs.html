@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Eventos{% endblock %}
+
+{% block header_title %}Historial de Eventos{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
+<style>
+    .event-type {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    .type-error { background-color: #dc3545; }
+    .type-warning { background-color: #ffc107; }
+    .type-info { background-color: #0dcaf0; }
+    .type-success { background-color: #198754; }
+    
+    .filter-card {
+        transition: all 0.3s ease;
+    }
+    .filter-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    .table th {
+        white-space: nowrap;
+    }
+    
+    .log-message {
+        max-width: 500px;
+        white-space: normal;
+        word-break: break-word;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card filter-card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Tipo de Evento</h6>
+                <div class="form-check">
+                    <input class="form-check-input filter-type" type="checkbox" value="error" id="filterError" checked>
+                    <label class="form-check-label" for="filterError">
+                        <span class="event-type type-error"></span>Error
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input filter-type" type="checkbox" value="warning" id="filterWarning" checked>
+                    <label class="form-check-label" for="filterWarning">
+                        <span class="event-type type-warning"></span>Advertencia
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input filter-type" type="checkbox" value="info" id="filterInfo" checked>
+                    <label class="form-check-label" for="filterInfo">
+                        <span class="event-type type-info"></span>Información
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input filter-type" type="checkbox" value="success" id="filterSuccess" checked>
+                    <label class="form-check-label" for="filterSuccess">
+                        <span class="event-type type-success"></span>Éxito
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card filter-card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Kiosko</h6>
+                <select class="form-select" id="kioskFilter">
+                    <option value="">Todos los kioscos</option>
+                    {% for kiosk in kiosks %}
+                        <option value="{{ kiosk.id }}">{{ kiosk.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card filter-card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Rango de Fechas</h6>
+                <input type="text" class="form-control" id="dateRange">
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card filter-card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Búsqueda</h6>
+                <input type="text" class="form-control" id="searchFilter" placeholder="Buscar en mensajes...">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumen -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Total Eventos</h6>
+                <h3 class="mb-0">{{ logs|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Errores</h6>
+                <h3 class="mb-0 text-danger">{{ error_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Advertencias</h6>
+                <h3 class="mb-0 text-warning">{{ warning_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Eventos por Hora</h6>
+                <h3 class="mb-0">{{ events_per_hour }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Eventos -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="logsTable">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Kiosko</th>
+                        <th>Mensaje</th>
+                        <th>Detalles</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr data-log-id="{{ log.id }}"
+                            data-type="{{ log.event_type }}"
+                            data-kiosk="{{ log.kiosk.id if log.kiosk else '' }}"
+                            data-timestamp="{{ log.created_at.timestamp() }}">
+                            <td>{{ log.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                            <td>
+                                <span class="event-type type-{{ log.event_type }}"></span>
+                                {{ log.event_type|title }}
+                            </td>
+                            <td>
+                                {% if log.kiosk %}
+                                    <a href="{{ url_for('kiosk.detail', kiosk_id=log.kiosk.id) }}">
+                                        {{ log.kiosk.name }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">Sistema</span>
+                                {% endif %}
+                            </td>
+                            <td class="log-message">{{ log.message }}</td>
+                            <td>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#logDetailsModal"
+                                        data-log-id="{{ log.id }}"
+                                        title="Ver detalles">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalles -->
+<div class="modal fade" id="logDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Evento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Información General</h6>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">ID</dt>
+                            <dd class="col-sm-8" id="logId"></dd>
+                            
+                            <dt class="col-sm-4">Fecha</dt>
+                            <dd class="col-sm-8" id="logDate"></dd>
+                            
+                            <dt class="col-sm-4">Tipo</dt>
+                            <dd class="col-sm-8" id="logType"></dd>
+                            
+                            <dt class="col-sm-4">Kiosko</dt>
+                            <dd class="col-sm-8" id="logKiosk"></dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Datos del Sistema</h6>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">IP</dt>
+                            <dd class="col-sm-8" id="logIp"></dd>
+                            
+                            <dt class="col-sm-4">Usuario</dt>
+                            <dd class="col-sm-8" id="logUser"></dd>
+                            
+                            <dt class="col-sm-4">Navegador</dt>
+                            <dd class="col-sm-8" id="logBrowser"></dd>
+                        </dl>
+                    </div>
+                </div>
+                <hr>
+                <h6 class="text-muted">Mensaje</h6>
+                <p class="mb-0" id="logMessage"></p>
+                <div id="logData" class="mt-3" style="display: none;">
+                    <h6 class="text-muted">Datos Adicionales</h6>
+                    <pre class="bg-light p-3 rounded"><code id="logDataContent"></code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Inicializar DataTable
+    const table = $('#logsTable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
+        },
+        order: [[0, 'desc']],
+        pageLength: 50
+    });
+    
+    // Inicializar DateRangePicker
+    $('#dateRange').daterangepicker({
+        locale: {
+            format: 'DD/MM/YYYY',
+            applyLabel: 'Aplicar',
+            cancelLabel: 'Cancelar',
+            fromLabel: 'Desde',
+            toLabel: 'Hasta',
+            customRangeLabel: 'Rango personalizado',
+            daysOfWeek: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'],
+            monthNames: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        },
+        startDate: moment().subtract(7, 'days'),
+        endDate: moment(),
+        ranges: {
+            'Hoy': [moment(), moment()],
+            'Ayer': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+            'Últimos 7 días': [moment().subtract(6, 'days'), moment()],
+            'Últimos 30 días': [moment().subtract(29, 'days'), moment()],
+            'Este mes': [moment().startOf('month'), moment().endOf('month')],
+            'Mes anterior': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        }
+    });
+    
+    // Filtros personalizados
+    $('.filter-type').on('change', function() {
+        const checkedTypes = $('.filter-type:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        table.column(1).search(checkedTypes.join('|'), true, false).draw();
+    });
+    
+    $('#kioskFilter').on('change', function() {
+        const kioskId = $(this).val();
+        if (kioskId) {
+            table.column(2).search(kioskId).draw();
+        } else {
+            table.column(2).search('').draw();
+        }
+    });
+    
+    $('#dateRange').on('apply.daterangepicker', function(ev, picker) {
+        const startTimestamp = picker.startDate.unix();
+        const endTimestamp = picker.endDate.unix();
+        
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            const rowTimestamp = parseFloat($('tr', table.row(dataIndex).node()).data('timestamp'));
+            return rowTimestamp >= startTimestamp && rowTimestamp <= endTimestamp;
+        });
+        
+        table.draw();
+        
+        // Limpiar el filtro personalizado
+        $.fn.dataTable.ext.search.pop();
+    });
+    
+    $('#searchFilter').on('keyup', function() {
+        table.search(this.value).draw();
+    });
+    
+    // Cargar detalles del evento
+    $('#logDetailsModal').on('show.bs.modal', function(event) {
+        const button = $(event.relatedTarget);
+        const logId = button.data('log-id');
+        
+        $.ajax({
+            url: `/kiosk/api/logs/${logId}`,
+            method: 'GET',
+            success: function(response) {
+                $('#logId').text(response.id);
+                $('#logDate').text(new Date(response.created_at).toLocaleString());
+                $('#logType').html(`
+                    <span class="event-type type-${response.event_type}"></span>
+                    ${response.event_type}
+                `);
+                $('#logKiosk').text(response.kiosk ? response.kiosk.name : 'Sistema');
+                $('#logIp').text(response.ip_address || 'N/A');
+                $('#logUser').text(response.user || 'N/A');
+                $('#logBrowser').text(response.user_agent || 'N/A');
+                $('#logMessage').text(response.message);
+                
+                if (response.data) {
+                    $('#logData').show();
+                    $('#logDataContent').text(JSON.stringify(response.data, null, 2));
+                } else {
+                    $('#logData').hide();
+                }
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al cargar los detalles del evento';
+                showNotification('danger', message);
+            }
+        });
+    });
+});
+
+function showNotification(type, message) {
+    const alert = $(`<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`);
+    $('.main-content').prepend(alert);
+    
+    setTimeout(() => {
+        alert.alert('close');
+    }, 5000);
+}
+</script>
+{% endblock %} 

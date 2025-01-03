@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración del Sistema{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Configuración del Sistema</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Configuración General -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Configuración General</h5>
+                </div>
+                <div class="card-body">
+                    <form id="generalSettingsForm">
+                        <div class="mb-3">
+                            <label for="systemName" class="form-label">Nombre del Sistema</label>
+                            <input type="text" class="form-control" id="systemName" value="Admin Kiosk">
+                        </div>
+                        <div class="mb-3">
+                            <label for="refreshInterval" class="form-label">Intervalo de Actualización (segundos)</label>
+                            <input type="number" class="form-control" id="refreshInterval" value="5">
+                        </div>
+                        <div class="mb-3">
+                            <label for="maxLogs" class="form-label">Máximo de Logs a Mostrar</label>
+                            <input type="number" class="form-control" id="maxLogs" value="100">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuración de Alertas -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Configuración de Alertas</h5>
+                </div>
+                <div class="card-body">
+                    <form id="alertSettingsForm">
+                        <div class="mb-3">
+                            <label class="form-label">CPU</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">Advertencia</span>
+                                        <input type="number" class="form-control" id="cpuWarning" value="80">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">Crítico</span>
+                                        <input type="number" class="form-control" id="cpuCritical" value="90">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">RAM</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">Advertencia</span>
+                                        <input type="number" class="form-control" id="ramWarning" value="85">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">Crítico</span>
+                                        <input type="number" class="form-control" id="ramCritical" value="95">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Disco</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">Advertencia</span>
+                                        <input type="number" class="form-control" id="diskWarning" value="85">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">Crítico</span>
+                                        <input type="number" class="form-control" id="diskCritical" value="95">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones del Sistema -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Acciones del Sistema</h5>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addActionModal">
+                            <i class="fas fa-plus me-1"></i>Nueva Acción
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Comando</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for action in actions %}
+                                <tr>
+                                    <td>{{ action.name }}</td>
+                                    <td><code>{{ action.command }}</code></td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if action.is_active else 'danger' }}">
+                                            {{ 'Activo' if action.is_active else 'Inactivo' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editAction({{ action.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteAction({{ action.id }})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estados del Sistema -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Estados del Sistema</h5>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addStateModal">
+                            <i class="fas fa-plus me-1"></i>Nuevo Estado
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Color</th>
+                                    <th>Descripción</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for state in states %}
+                                <tr>
+                                    <td>{{ state.name }}</td>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ state.color }}">
+                                            {{ state.color }}
+                                        </span>
+                                    </td>
+                                    <td>{{ state.description }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editState({{ state.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteState({{ state.id }})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Agregar/Editar Acción -->
+<div class="modal fade" id="addActionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nueva Acción</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="actionForm">
+                    <div class="mb-3">
+                        <label for="actionName" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="actionName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="actionCommand" class="form-label">Comando</label>
+                        <input type="text" class="form-control" id="actionCommand" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="actionIcon" class="form-label">Ícono</label>
+                        <input type="text" class="form-control" id="actionIcon" value="fas fa-cog">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="actionConfirmation">
+                        <label class="form-check-label" for="actionConfirmation">Requiere Confirmación</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveAction()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Agregar/Editar Estado -->
+<div class="modal fade" id="addStateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Estado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="stateForm">
+                    <div class="mb-3">
+                        <label for="stateName" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="stateName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stateColor" class="form-label">Color</label>
+                        <input type="color" class="form-control" id="stateColor" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stateDescription" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="stateDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveState()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Funciones para manejar las acciones
+function editAction(id) {
+    // Implementar lógica para editar acción
+}
+
+function deleteAction(id) {
+    if (confirm('¿Está seguro de que desea eliminar esta acción?')) {
+        // Implementar lógica para eliminar acción
+    }
+}
+
+function saveAction() {
+    // Implementar lógica para guardar acción
+}
+
+// Funciones para manejar los estados
+function editState(id) {
+    // Implementar lógica para editar estado
+}
+
+function deleteState(id) {
+    if (confirm('¿Está seguro de que desea eliminar este estado?')) {
+        // Implementar lógica para eliminar estado
+    }
+}
+
+function saveState() {
+    // Implementar lógica para guardar estado
+}
+
+// Manejar envío de formularios
+document.getElementById('generalSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Implementar lógica para guardar configuración general
+});
+
+document.getElementById('alertSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Implementar lógica para guardar configuración de alertas
+});
+</script>
+{% endblock %} 

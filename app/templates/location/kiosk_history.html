@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Ubicaciones - {{ kiosk.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+    #map {
+        height: 500px;
+        width: 100%;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{{ url_for('kiosk.detail', kiosk_id=kiosk.id) }}" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-arrow-left me-1"></i>Volver
+                </a>
+                <h1 class="d-inline-block mb-0">Historial de Ubicaciones - {{ kiosk.name }}</h1>
+            </div>
+            <div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#assignLocationModal">
+                    <i class="fas fa-map-marker-alt me-1"></i>Asignar Nueva Ubicación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Tabla de Historial -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Historial de Ubicaciones</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Ubicación</th>
+                                <th>Desde</th>
+                                <th>Hasta</th>
+                                <th>Notas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in history %}
+                                <tr data-location-id="{{ entry.location.id }}"
+                                    data-lat="{{ entry.location.latitude }}"
+                                    data-lng="{{ entry.location.longitude }}"
+                                    data-name="{{ entry.location.name }}"
+                                    class="location-entry {% if not entry.end_date %}table-primary{% endif %}">
+                                    <td>
+                                        {{ entry.location.name }}
+                                        {% if not entry.end_date %}
+                                            <span class="badge bg-primary">Actual</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ entry.start_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        {% if entry.end_date %}
+                                            {{ entry.end_date.strftime('%d/%m/%Y %H:%M') }}
+                                        {% else %}
+                                            Presente
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ entry.notes or '-' }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No hay registros de ubicaciones</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{{ url_for('kiosk.detail', kiosk_id=kiosk.id) }}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-eye me-1"></i>Ver Detalles
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mapa -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Mapa de Ubicaciones</h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Asignar Ubicación -->
+<div class="modal fade" id="assignLocationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Asignar Nueva Ubicación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="assignLocationForm">
+                    <div class="mb-3">
+                        <label for="location_id" class="form-label">Ubicación</label>
+                        <select class="form-select" id="location_id" name="location_id" required>
+                            <option value="">Seleccionar ubicación...</option>
+                            {% for location in locations %}
+                                <option value="{{ location.id }}">
+                                    {{ location.name }} - {{ location.address }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notas</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveLocationBtn">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+$(document).ready(function() {
+    // Inicializar mapa
+    var map = L.map('map');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    var markers = [];
+    var bounds = L.latLngBounds();
+    
+    // Agregar marcadores para cada ubicación
+    $('.location-entry').each(function() {
+        var lat = parseFloat($(this).data('lat'));
+        var lng = parseFloat($(this).data('lng'));
+        var name = $(this).data('name');
+        
+        if (lat && lng) {
+            var marker = L.marker([lat, lng])
+                .bindPopup(name)
+                .addTo(map);
+            
+            markers.push(marker);
+            bounds.extend([lat, lng]);
+        }
+    });
+    
+    // Ajustar el mapa para mostrar todos los marcadores
+    if (markers.length > 0) {
+        map.fitBounds(bounds);
+    } else {
+        map.setView([0, 0], 2);
+    }
+    
+    // Manejar la asignación de ubicación
+    $('#saveLocationBtn').on('click', function() {
+        var locationId = $('#location_id').val();
+        var notes = $('#notes').val();
+        
+        if (!locationId) {
+            alert('Por favor seleccione una ubicación');
+            return;
+        }
+        
+        $.ajax({
+            url: '/location/api/assign-kiosk',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                'kiosk_id': {{ kiosk.id }},
+                'location_id': parseInt(locationId),
+                'notes': notes || ''
+            }),
+            success: function(response) {
+                var alert = $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                            'Ubicación asignada exitosamente' +
+                            '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                            '</div>');
+                $('.container-fluid').prepend(alert);
+                
+                $('#assignLocationModal').modal('hide');
+                setTimeout(function() {
+                    window.location.reload();
+                }, 1000);
+            },
+            error: function(xhr) {
+                var message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al asignar la ubicación';
+                var alert = $('<div class="alert alert-danger alert-dismissible fade show" role="alert">' +
+                            message +
+                            '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                            '</div>');
+                $('.container-fluid').prepend(alert);
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 
