@@ -1,0 +1,15 @@
+{% macro kiosk_card(kiosk) %}
+<div class="card mb-3">
+    <div class="card-header bg-{{ 'success' if kiosk.status == 'online' else 'danger' }}">
+        <h5 class="card-title text-white mb-0">{{ kiosk.name }}</h5>
+    </div>
+    <div class="card-body">
+        <p class="card-text">
+            <strong>IP:</strong> {{ kiosk.ip_address }}<br>
+            <strong>Estado:</strong> {{ kiosk.status }}<br>
+            <strong>Última conexión:</strong> {{ kiosk.last_connection.strftime('%Y-%m-%d %H:%M:%S') }}
+        </p>
+        <button class="btn btn-primary btn-sm" onclick="refreshKiosk('{{ kiosk.id }}')">Actualizar</button>
+    </div>
+</div>
+{% endmacro %} 
