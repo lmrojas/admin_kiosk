@@ -35,7 +35,6 @@ class Location(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.String(255))
     address = db.Column(db.String(255), nullable=False)
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
@@ -54,7 +53,6 @@ class Location(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'description': self.description,
             'address': self.address,
             'latitude': self.latitude,
             'longitude': self.longitude,

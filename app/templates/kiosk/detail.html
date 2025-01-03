@@ -325,12 +325,12 @@
                                 <tbody>
                                     {% for location in kiosk.location_history %}
                                         <tr class="location-entry" 
-                                            data-lat="{{ location.latitude }}"
-                                            data-lng="{{ location.longitude }}"
+                                            data-lat="{{ location.location.latitude }}"
+                                            data-lng="{{ location.location.longitude }}"
                                             data-name="{{ location.name }}">
                                             <td>{{ location.name }}</td>
-                                            <td>{{ "%.6f"|format(location.latitude) }}</td>
-                                            <td>{{ "%.6f"|format(location.longitude) }}</td>
+                                            <td>{{ "%.6f"|format(location.location.latitude) }}</td>
+                                            <td>{{ "%.6f"|format(location.location.longitude) }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>

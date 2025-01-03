@@ -1,0 +1,23 @@
+[33mcommit 629a74b2ea6f8ffd05078c6a3a3f5ec76228b9c2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m
+Author: lmrojas <lmrojasramirez@gmail.com>
+Date:   Fri Jan 3 16:17:59 2025 -0300
+
+    feat: Sistema base funcional con simulación de kiosks y ubicaciones - Punto de guardado antes de mejoras de UI/UX
+
+[33mcommit f12532b272c416f573436a45685286a462ceb6ad[m[33m ([m[1;31morigin/master[m[33m)[m
+Author: lmrojas <lmrojasramirez@gmail.com>
+Date:   Fri Jan 3 15:43:57 2025 -0300
+
+    feat: Mejora significativa en la interfaz de usuario y experiencia de usuario - Rediseño completo de la interfaz con un diseño moderno y responsive - Implementación de filtros para kioscos - Mejora en la visualización de métricas - Agregado de modales para acciones - Implementación de tablas interactivas - Creación de vistas detalladas con mapas
+
+[33mcommit a7521db1a716d38975eb7ff4dcb58ef13bb54fd3[m
+Author: lmrojas <lmrojasramirez@gmail.com>
+Date:   Fri Jan 3 13:18:25 2025 -0300
+
+    Estructura inicial del sistema de kiosks
+
+[33mcommit ea73f5ac52a332b252f1a8a04d40c9754006562d[m
+Author: lmrojas <lmrojasramirez@gmail.com>
+Date:   Fri Jan 3 13:11:21 2025 -0300
+
+    Commit inicial del sistema kiosk

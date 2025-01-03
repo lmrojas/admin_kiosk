@@ -4,6 +4,7 @@ from app.models.location import Location, KioskLocation
 from app.models.kiosk import Kiosk
 from app import cache
 from datetime import datetime
+from sqlalchemy import func
 
 bp = Blueprint('location', __name__, url_prefix='/location')
 
@@ -12,7 +13,15 @@ bp = Blueprint('location', __name__, url_prefix='/location')
 def index():
     """Vista principal que muestra todas las ubicaciones"""
     locations = Location.get_active_locations()
-    return render_template('location/index.html', locations=locations)
+    
+    # Calcular el promedio de kiosks por ubicación
+    total_locations = len(locations)
+    total_kiosks = Kiosk.query.count()
+    avg_kiosks_per_location = total_kiosks / total_locations if total_locations > 0 else 0
+    
+    return render_template('location/index.html', 
+                         locations=locations,
+                         avg_kiosks_per_location=avg_kiosks_per_location)
 
 @bp.route('/kiosk/<int:kiosk_id>')
 def kiosk_history(kiosk_id):
@@ -34,7 +43,6 @@ def add_location():
     try:
         location = Location(
             name=data['name'],
-            description=data.get('description'),
             address=data['address'],
             latitude=data['latitude'],
             longitude=data['longitude']
