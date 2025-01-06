@@ -1,211 +1,70 @@
-from app import db
+from app.extensions import db
 from datetime import datetime
-import json
+from sqlalchemy.dialects.sqlite import JSON
 
 class Kiosk(db.Model):
     """Modelo para los kiosks"""
-    __tablename__ = 'kiosks'
-    
-    # Estados válidos
-    VALID_STATES = ['online', 'offline', 'warning']
-    
     id = db.Column(db.Integer, primary_key=True)
-    serial_number = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    location_text = db.Column(db.String(255))
-    ip_address = db.Column(db.String(15))
-    status = db.Column(db.String(50), default='offline')
+    serial_number = db.Column(db.String(50), unique=True, nullable=False)
+    status = db.Column(db.String(20), default='offline')
+    ip_address = db.Column(db.String(45))
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'))
+    state_id = db.Column(db.Integer, db.ForeignKey('states.id'))
     last_connection = db.Column(db.DateTime)
     last_action_state = db.Column(db.String(100))
-    sensors_data = db.Column(db.JSON)
+    sensors_data = db.Column(JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
-    location_id = db.Column(db.Integer, db.ForeignKey('locations.id'))
-    state_id = db.Column(db.Integer, db.ForeignKey('states.id'))
-    logs = db.relationship('KioskLog', backref='kiosk', lazy=True)
-    location = db.relationship('Location', foreign_keys=[location_id], back_populates='kiosks')
-    
-    # Umbrales de alerta
-    THRESHOLDS = {
-        'cpu': {'warning': 80, 'critical': 90},
-        'ram': {'warning': 85, 'critical': 95},
-        'disk': {'warning': 85, 'critical': 95},
-        'temperature': {'warning': 35, 'critical': 40},
-        'signal': {'warning': 30},
-        'battery': {'critical': 10}
-    }
-    
-    @property
-    def alert_level(self):
-        """Calcular nivel de alerta basado en métricas"""
-        sensors = self.sensors_data_dict
-        
-        # Si está offline, retornar high
-        if self.status == 'offline':
-            return 'high'
-            
-        # Verificar métricas críticas
-        if (sensors.get('cpu_usage', 0) > self.THRESHOLDS['cpu']['critical'] or
-            sensors.get('ram_usage', 0) > self.THRESHOLDS['ram']['critical'] or
-            sensors.get('disk_usage', 0) > self.THRESHOLDS['disk']['critical'] or
-            sensors.get('temperature', 0) > self.THRESHOLDS['temperature']['critical']):
-            return 'high'
-            
-        # Verificar métricas de advertencia
-        if (sensors.get('cpu_usage', 0) > self.THRESHOLDS['cpu']['warning'] or
-            sensors.get('ram_usage', 0) > self.THRESHOLDS['ram']['warning'] or
-            sensors.get('disk_usage', 0) > self.THRESHOLDS['disk']['warning'] or
-            sensors.get('temperature', 0) > self.THRESHOLDS['temperature']['warning']):
-            return 'medium'
-            
-        return 'none'
-    
-    def update_status(self):
-        """Actualizar estado basado en métricas y última conexión"""
-        # Si no hay conexión en los últimos 5 minutos, marcar como offline
-        if not self.last_connection or (datetime.utcnow() - self.last_connection).total_seconds() > 300:
-            self.status = 'offline'
-            return
-            
-        # Si hay alertas críticas, marcar como warning
-        if self.alert_level == 'high':
-            self.status = 'warning'
-            return
-            
-        # Si todo está bien, marcar como online
-        self.status = 'online'
+    location = db.relationship('Location', back_populates='kiosks')
+    state = db.relationship('State', back_populates='kiosks')
+    logs = db.relationship('KioskLog', backref='kiosk', lazy='dynamic',
+                          cascade='all, delete-orphan')
     
     @property
     def sensors_data_dict(self):
-        """Obtener los datos de sensores como diccionario"""
-        if not self.sensors_data:
-            return {}
-        if isinstance(self.sensors_data, str):
-            try:
-                return json.loads(self.sensors_data)
-            except json.JSONDecodeError:
-                return {}
-        return self.sensors_data if isinstance(self.sensors_data, dict) else {}
+        """Obtiene los datos de sensores como diccionario"""
+        return self.sensors_data if self.sensors_data else {}
     
-    def __repr__(self):
-        return f'<Kiosk {self.name}>'
+    @property
+    def alert_level(self):
+        """Calcula el nivel de alerta basado en los sensores"""
+        from app.models.settings import Settings
+        
+        if not self.sensors_data:
+            return None
+            
+        cpu_warning = int(Settings.get_value('cpu_warning', 80))
+        cpu_critical = int(Settings.get_value('cpu_critical', 90))
+        ram_warning = int(Settings.get_value('ram_warning', 85))
+        ram_critical = int(Settings.get_value('ram_critical', 95))
+        
+        cpu = float(self.sensors_data.get('cpu_usage', 0))
+        ram = float(self.sensors_data.get('ram_usage', 0))
+        
+        if cpu >= cpu_critical or ram >= ram_critical:
+            return 'critical'
+        elif cpu >= cpu_warning or ram >= ram_warning:
+            return 'warning'
+        return 'normal'
     
     def to_dict(self):
-        """Convertir el objeto a un diccionario para la API"""
+        """Convierte el kiosk a diccionario"""
         return {
             'id': self.id,
-            'serial_number': self.serial_number,
             'name': self.name,
-            'location_text': self.location_text,
-            'ip_address': self.ip_address,
+            'serial_number': self.serial_number,
             'status': self.status,
-            'last_connection': self.last_connection.isoformat() if self.last_connection else None,
+            'ip_address': self.ip_address,
+            'location_id': self.location_id,
+            'location_name': self.location.name if self.location else None,
+            'last_connection': self.last_connection.strftime('%Y-%m-%d %H:%M:%S') if self.last_connection else None,
             'last_action_state': self.last_action_state,
             'sensors_data': self.sensors_data_dict,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'location': self.location.to_dict() if self.location else None,
-            'state': self.state.to_dict() if self.state else None,
-            'alerts': self.calculate_alerts()
+            'alert_level': self.alert_level
         }
     
-    def update_sensor_data(self, data):
-        """Actualizar los datos de los sensores"""
-        if isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except json.JSONDecodeError:
-                return False
-        
-        # Validar estructura de datos
-        required_fields = ['cpu_usage', 'ram_usage', 'disk_usage']
-        if not all(field in data for field in required_fields):
-            return False
-        
-        # Actualizar datos y calcular alertas
-        self.sensors_data = data
-        self.updated_at = datetime.utcnow()
-        
-        # Actualizar estado basado en alertas
-        alerts = self.calculate_alerts()
-        if any(alert['type'] == 'danger' for alert in alerts):
-            self.state_id = 3  # Estado crítico
-        elif any(alert['type'] == 'warning' for alert in alerts):
-            self.state_id = 2  # Estado warning
-        else:
-            self.state_id = 1  # Estado normal
-        
-        db.session.commit()
-        return True
-    
-    def calculate_alerts(self):
-        """Calcular alertas basadas en los datos de los sensores"""
-        alerts = []
-        data = self.sensors_data_dict
-        if not data:
-            return alerts
-        
-        # Sistema
-        if 'cpu_usage' in data:
-            cpu = float(data['cpu_usage'])
-            if cpu > self.THRESHOLDS['cpu']['critical']:
-                alerts.append({'type': 'danger', 'message': f'CPU crítico: {cpu}%'})
-            elif cpu > self.THRESHOLDS['cpu']['warning']:
-                alerts.append({'type': 'warning', 'message': f'CPU alto: {cpu}%'})
-        
-        if 'ram_usage' in data:
-            ram = float(data['ram_usage'])
-            if ram > self.THRESHOLDS['ram']['critical']:
-                alerts.append({'type': 'danger', 'message': f'RAM crítico: {ram}%'})
-            elif ram > self.THRESHOLDS['ram']['warning']:
-                alerts.append({'type': 'warning', 'message': f'RAM alto: {ram}%'})
-        
-        if 'disk_usage' in data:
-            disk = float(data['disk_usage'])
-            if disk > self.THRESHOLDS['disk']['critical']:
-                alerts.append({'type': 'danger', 'message': f'Disco crítico: {disk}%'})
-            elif disk > self.THRESHOLDS['disk']['warning']:
-                alerts.append({'type': 'warning', 'message': f'Disco alto: {disk}%'})
-        
-        # Ambiente
-        if 'temperature' in data:
-            temp = float(data['temperature'])
-            if temp > self.THRESHOLDS['temperature']['critical']:
-                alerts.append({'type': 'danger', 'message': f'Temperatura crítica: {temp}°C'})
-            elif temp > self.THRESHOLDS['temperature']['warning']:
-                alerts.append({'type': 'warning', 'message': f'Temperatura alta: {temp}°C'})
-        
-        # Red
-        if 'network' in data:
-            signal = float(data['network'].get('signal_strength', 100))
-            if signal < self.THRESHOLDS['signal']['warning']:
-                alerts.append({'type': 'warning', 'message': f'Señal WiFi baja: {signal}%'})
-        
-        # UPS
-        if 'ups' in data:
-            battery = float(data['ups'].get('battery_level', 100))
-            if battery < self.THRESHOLDS['battery']['critical']:
-                alerts.append({'type': 'danger', 'message': f'Batería crítica: {battery}%'})
-        
-        # Errores y advertencias explícitas
-        alerts.extend({'type': 'danger', 'message': error} for error in data.get('errors', []))
-        alerts.extend({'type': 'warning', 'message': warning} for warning in data.get('warnings', []))
-        
-        return alerts
-    
-    @staticmethod
-    def get_kiosk_by_id(kiosk_id):
-        """Obtener un kiosk por su ID"""
-        return Kiosk.query.get_or_404(kiosk_id)
-    
-    @staticmethod
-    def get_kiosk_by_serial(serial_number):
-        """Obtener un kiosk por su número de serie"""
-        return Kiosk.query.filter_by(serial_number=serial_number).first()
-    
-    @staticmethod
-    def get_all_kiosks():
-        """Obtener todos los kiosks"""
-        return Kiosk.query.all() 
+    def __repr__(self):
+        return f'<Kiosk {self.name}>' 

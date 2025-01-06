@@ -162,7 +162,7 @@
                 <h5 class="modal-title">Agregar Ubicación</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="addLocationForm" method="POST" action="{{ url_for('location.add_location') }}">
+            <form id="addLocationForm">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="name" class="form-label">Nombre</label>
@@ -316,34 +316,35 @@ $(document).ready(function() {
     }
     
     // Agregar ubicación
-    $('#saveLocationBtn').click(function() {
+    $('#addLocationForm').on('submit', function(e) {
+        e.preventDefault();
         const formData = {
             name: $('#name').val(),
             address: $('#address').val(),
-            latitude: $('#latitude').val(),
-            longitude: $('#longitude').val()
+            latitude: parseFloat($('#latitude').val()),
+            longitude: parseFloat($('#longitude').val())
         };
 
-        if (!formData.name || !formData.address || !formData.latitude || !formData.longitude) {
-            alert('Por favor complete todos los campos');
+        if (!formData.name || !formData.address || isNaN(formData.latitude) || isNaN(formData.longitude)) {
+            alert('Por favor complete todos los campos correctamente');
             return;
         }
 
         $.ajax({
-            url: '/location/api/add',
+            url: "{{ url_for('location.api_create') }}",
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(formData),
             success: function(response) {
-                if (response.success) {
+                if (response.status === 'success') {
                     $('#addLocationModal').modal('hide');
                     window.location.reload();
                 } else {
-                    alert(response.error || 'Error al guardar la ubicación');
+                    alert(response.message || 'Error al guardar la ubicación');
                 }
             },
             error: function(xhr) {
-                alert('Error al guardar la ubicación');
+                alert('Error al guardar la ubicación: ' + (xhr.responseJSON?.message || 'Error desconocido'));
             }
         });
     });

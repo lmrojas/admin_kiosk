@@ -1,201 +1,43 @@
 {% extends "base.html" %}
 
-{% block title %}Logs{% endblock %}
+{% block title %}Historial de Eventos{% endblock %}
+
+{% block header_title %}Historial de Eventos{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Heading -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Logs del Sistema</h1>
-    </div>
-
-    <!-- Content Row -->
-    <div class="row">
-        <!-- Total Logs Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Total Logs</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ logs|length }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Eventos Recientes</h6>
         </div>
-
-        <!-- Errores Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-danger shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                Errores</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ error_count }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Advertencias Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Advertencias</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ warning_count }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-exclamation fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Eventos por Hora Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Eventos por Hora</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ events_per_hour }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-clock fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Content Row -->
-    <div class="row">
-        <!-- Area Chart -->
-        <div class="col-xl-12">
-            <div class="card shadow mb-4">
-                <!-- Card Header -->
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Logs del Sistema</h6>
-                    <div class="dropdown no-arrow">
-                        <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
-                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in"
-                            aria-labelledby="dropdownMenuLink">
-                            <div class="dropdown-header">Acciones:</div>
-                            <a class="dropdown-item" href="#">Exportar Logs</a>
-                            <a class="dropdown-item" href="#">Limpiar Logs</a>
-                        </div>
-                    </div>
-                </div>
-                <!-- Card Body -->
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered" id="logsTable" width="100%" cellspacing="0">
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Kiosk</th>
-                                    <th>Tipo</th>
-                                    <th>Mensaje</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for log in logs %}
-                                <tr class="{% if log.event_type == 'error' %}table-danger{% elif log.event_type == 'warning' %}table-warning{% endif %}">
-                                    <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                                    <td>
-                                        <a href="{{ url_for('kiosk.detail', id=log.kiosk.id) }}">
-                                            {{ log.kiosk.name }}
-                                        </a>
-                                    </td>
-                                    <td>
-                                        <span class="badge {% if log.event_type == 'error' %}badge-danger{% elif log.event_type == 'warning' %}badge-warning{% else %}badge-info{% endif %}">
-                                            {{ log.event_type }}
-                                        </span>
-                                    </td>
-                                    <td>{{ log.message }}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-info" onclick="viewLogDetails({{ log.id }})">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Kiosk</th>
+                            <th>Tipo</th>
+                            <th>Mensaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.created_at|datetime }}</td>
+                            <td>{{ log.kiosk.name if log.kiosk else 'Sistema' }}</td>
+                            <td>
+                                <span class="badge bg-{{ log.event_type }}">
+                                    {{ log.event_type_display }}
+                                </span>
+                            </td>
+                            <td>{{ log.message }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Log Details Modal -->
-<div class="modal fade" id="logDetailsModal" tabindex="-1" role="dialog" aria-labelledby="logDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="logDetailsModalLabel">Detalles del Log</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" id="logDetailsContent">
-                <!-- Content will be loaded dynamically -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-function viewLogDetails(logId) {
-    fetch(`/kiosk/api/logs/${logId}`)
-        .then(response => response.json())
-        .then(data => {
-            let content = `
-                <p><strong>Fecha:</strong> ${new Date(data.created_at).toLocaleString()}</p>
-                <p><strong>Tipo:</strong> ${data.event_type}</p>
-                <p><strong>Mensaje:</strong> ${data.message}</p>
-                <p><strong>Detalles:</strong></p>
-                <pre>${JSON.stringify(data.details, null, 2)}</pre>
-            `;
-            document.getElementById('logDetailsContent').innerHTML = content;
-            $('#logDetailsModal').modal('show');
-        })
-        .catch(error => console.error('Error:', error));
-}
-
-$(document).ready(function() {
-    $('#logsTable').DataTable({
-        "order": [[0, "desc"]],
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
-        }
-    });
-});
-</script>
 {% endblock %} 

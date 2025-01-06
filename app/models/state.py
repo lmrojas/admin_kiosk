@@ -1,4 +1,4 @@
-from app import db
+from app.extensions import db
 from datetime import datetime
 
 class State(db.Model):
@@ -13,7 +13,7 @@ class State(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     
     # Relaciones
-    kiosks = db.relationship('Kiosk', backref='state', lazy='dynamic')
+    kiosks = db.relationship('Kiosk', back_populates='state', lazy='dynamic')
     
     def __repr__(self):
         return f'<State {self.name}>'

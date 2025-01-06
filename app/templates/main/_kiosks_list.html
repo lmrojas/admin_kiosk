@@ -1,0 +1,35 @@
+<div class="col-xl-8 col-lg-7">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Kiosks Recientes</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Ubicación</th>
+                            <th>Estado</th>
+                            <th>Última Conexión</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for kiosk in kiosks[:5] %}
+                        <tr>
+                            <td>{{ kiosk.name }}</td>
+                            <td>{{ kiosk.location.name if kiosk.location else 'Sin ubicación' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if kiosk.status == 'online' else 'danger' }}">
+                                    {{ kiosk.status }}
+                                </span>
+                            </td>
+                            <td>{{ kiosk.last_connection|datetime }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div> 

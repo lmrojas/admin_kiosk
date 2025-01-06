@@ -1,54 +1,59 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_socketio import SocketIO
-from flask_caching import Cache
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 import os
+from app.extensions import init_extensions, db
+from app.utils.logger import setup_logger
+from app.blueprints import init_blueprints
 
-db = SQLAlchemy()
-migrate = Migrate()
-socketio = SocketIO(async_mode='threading')
-cache = Cache()
-limiter = Limiter(key_func=get_remote_address)
-
-def create_app(config=None):
+def create_app(config_name=None):
+    """Crea y configura la aplicación Flask"""
     app = Flask(__name__)
     
     # Configuración por defecto
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-12345')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kiosk.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config.update(
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-key-12345'),
+        SQLALCHEMY_DATABASE_URI='postgresql://postgres:postgres@localhost/admin_kiosk',
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        CACHE_TYPE='simple',
+        CACHE_DEFAULT_TIMEOUT=300,
+        JSON_SORT_KEYS=False,
+        MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max-limit
+    )
     
-    # Sobreescribir con configuración personalizada
-    if config:
-        app.config.update(config)
+    # Configurar logger
+    setup_logger(app)
+    app.logger.info('Iniciando aplicación Admin Kiosk')
     
     # Inicializar extensiones
-    db.init_app(app)
-    migrate.init_app(app, db)
-    socketio.init_app(app, cors_allowed_origins="*")
-    cache.init_app(app)
-    limiter.init_app(app)
-    
-    # Importar modelos para que SQLAlchemy los reconozca
-    from app.models.kiosk import Kiosk
-    from app.models.location import Location, KioskLocation
-    from app.models.state import State
-    from app.models.action import Action
-    from app.models.kiosk_log import KioskLog
-    from app.models.user import User
-    from app.models.settings import Settings
+    init_extensions(app)
+    app.logger.info('Extensiones inicializadas')
     
     # Registrar blueprints
-    from app.views import kiosk, location
-    app.register_blueprint(kiosk.bp)
-    app.register_blueprint(location.bp)
+    init_blueprints(app)
     
-    # Ruta principal
-    @app.route('/')
-    def index():
-        return kiosk.index()
+    # Agregar filtros para las plantillas
+    @app.template_filter('datetime')
+    def format_datetime(value):
+        if value is None:
+            return 'Nunca'
+        return value.strftime('%d/%m/%Y %H:%M:%S')
+    
+    # Importar modelos y crear tablas
+    with app.app_context():
+        app.logger.info('Inicializando modelos y tablas')
+        # Importar todos los modelos para que SQLAlchemy los reconozca
+        from app.models.kiosk import Kiosk
+        from app.models.location import Location
+        from app.models.state import State
+        from app.models.action import Action
+        from app.models.kiosk_log import KioskLog
+        from app.models.settings import Settings
+        
+        # Crear todas las tablas
+        db.create_all()
+        app.logger.info('Tablas creadas')
+        
+        # Inicializar configuraciones por defecto
+        Settings.initialize_defaults()
+        app.logger.info('Configuraciones inicializadas')
     
     return app 

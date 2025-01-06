@@ -2,24 +2,21 @@
 
 {% block title %}Dashboard{% endblock %}
 
+{% block header_title %}{{ settings.system_name }} - Dashboard{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Heading -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
-    </div>
-
-    <!-- Content Row -->
+    <!-- Estadísticas -->
     <div class="row">
         <!-- Total Kiosks -->
-        <div class="col-xl-4 col-md-6 mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Total Kiosks</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_kiosks }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_kiosks }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-desktop fa-2x text-gray-300"></i>
@@ -30,14 +27,14 @@
         </div>
 
         <!-- Kiosks Online -->
-        <div class="col-xl-4 col-md-6 mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Kiosks Online</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ online_kiosks }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.online_kiosks }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-signal fa-2x text-gray-300"></i>
@@ -47,15 +44,33 @@
             </div>
         </div>
 
+        <!-- Kiosks Offline -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Kiosks Offline</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.offline_kiosks }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Total Locations -->
-        <div class="col-xl-4 col-md-6 mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                                 Total Ubicaciones</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_locations }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_locations }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-map-marker-alt fa-2x text-gray-300"></i>
@@ -66,13 +81,16 @@
         </div>
     </div>
 
-    <!-- Content Row -->
+    <!-- Contenido Principal -->
     <div class="row">
-        <!-- Kiosks List -->
+        <!-- Lista de Kiosks -->
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow mb-4">
-                <div class="card-header py-3">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary">Kiosks Recientes</h6>
+                    <a href="{{ url_for('kiosks.index') }}" class="btn btn-sm btn-primary">
+                        Ver Todos
+                    </a>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -83,6 +101,7 @@
                                     <th>Ubicación</th>
                                     <th>Estado</th>
                                     <th>Última Conexión</th>
+                                    <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -91,11 +110,17 @@
                                     <td>{{ kiosk.name }}</td>
                                     <td>{{ kiosk.location.name if kiosk.location else 'Sin ubicación' }}</td>
                                     <td>
-                                        <span class="badge badge-{{ 'success' if kiosk.status == 'online' else 'danger' }}">
+                                        <span class="badge bg-{{ 'success' if kiosk.status == 'online' else 'danger' }}">
                                             {{ kiosk.status }}
                                         </span>
                                     </td>
                                     <td>{{ kiosk.last_connection|datetime }}</td>
+                                    <td>
+                                        <a href="{{ url_for('kiosks.detail', id=kiosk.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -105,34 +130,45 @@
             </div>
         </div>
 
-        <!-- Locations List -->
+        <!-- Actividad Reciente -->
         <div class="col-xl-4 col-lg-5">
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Ubicaciones</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Actividad Reciente</h6>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered" width="100%" cellspacing="0">
-                            <thead>
-                                <tr>
-                                    <th>Nombre</th>
-                                    <th>Kiosks</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for location in locations %}
-                                <tr>
-                                    <td>{{ location.name }}</td>
-                                    <td>{{ location.kiosks|length }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="list-group list-group-flush">
+                        {% for log in recent_logs %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ log.kiosk.name if log.kiosk else 'Sistema' }}</h6>
+                                <small class="text-muted">{{ log.created_at|datetime }}</small>
+                            </div>
+                            <p class="mb-1">{{ log.message }}</p>
+                            <small class="text-{{ log.event_type }}">
+                                {{ log.event_type_display }}
+                            </small>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Actualizar dashboard cada X segundos
+    const refreshInterval = {{ settings.refresh_interval }} * 1000;
+    
+    function refreshDashboard() {
+        location.reload();
+    }
+    
+    if (refreshInterval > 0) {
+        setInterval(refreshDashboard, refreshInterval);
+    }
+</script>
 {% endblock %} 

@@ -1,86 +1,61 @@
+from app.extensions import db
 from datetime import datetime
-from app import db
-
-class KioskLocation(db.Model):
-    """Modelo para el histórico de ubicaciones de kiosks"""
-    __tablename__ = 'kiosk_locations'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    kiosk_id = db.Column(db.Integer, db.ForeignKey('kiosks.id'), nullable=False)
-    location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False)
-    start_date = db.Column(db.DateTime, default=datetime.utcnow)
-    end_date = db.Column(db.DateTime)
-    notes = db.Column(db.String(255))
-    
-    # Relaciones
-    kiosk = db.relationship('Kiosk', backref='location_history')
-    location = db.relationship('Location')
-    
-    def __repr__(self):
-        return f'<KioskLocation {self.kiosk.name} at {self.location.name}>'
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'kiosk_id': self.kiosk_id,
-            'location_id': self.location_id,
-            'location': self.location.to_dict(),
-            'start_date': self.start_date.isoformat() if self.start_date else None,
-            'end_date': self.end_date.isoformat() if self.end_date else None,
-            'notes': self.notes
-        }
 
 class Location(db.Model):
-    __tablename__ = 'locations'
-    
+    """Modelo para las ubicaciones"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    address = db.Column(db.String(255), nullable=False)
+    address = db.Column(db.String(200))
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True)
     
     # Relaciones
-    kiosks = db.relationship('Kiosk', back_populates='location', lazy=True)
+    kiosks = db.relationship('Kiosk', back_populates='location')
     
-    def __repr__(self):
-        return f'<Location {self.name}>'
+    @classmethod
+    def get_active_locations(cls):
+        """Obtiene todas las ubicaciones activas"""
+        return cls.query.filter_by(is_active=True).all()
     
     def to_dict(self):
-        """Convertir el objeto a un diccionario para la API"""
+        """Convierte la ubicación a diccionario"""
         return {
             'id': self.id,
             'name': self.name,
             'address': self.address,
             'latitude': self.latitude,
             'longitude': self.longitude,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'is_active': self.is_active
+            'is_active': self.is_active,
+            'kiosks_count': len(self.kiosks),
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S')
         }
     
-    @staticmethod
-    def get_active_locations():
-        """Obtener todas las ubicaciones activas"""
-        return Location.query.filter_by(is_active=True).all()
+    def __repr__(self):
+        return f'<Location {self.name}>'
+
+class KioskLocation(db.Model):
+    """Modelo para el historial de ubicaciones de kiosks"""
+    id = db.Column(db.Integer, primary_key=True)
+    kiosk_id = db.Column(db.Integer, db.ForeignKey('kiosk.id'), index=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), index=True)
+    start_date = db.Column(db.DateTime, default=datetime.utcnow)
+    end_date = db.Column(db.DateTime)
+    notes = db.Column(db.String(200))
     
-    @staticmethod
-    def get_location_by_id(location_id):
-        """Obtener una ubicación por su ID"""
-        return Location.query.get_or_404(location_id)
+    def to_dict(self):
+        """Convierte el registro a diccionario"""
+        return {
+            'id': self.id,
+            'kiosk_id': self.kiosk_id,
+            'location_id': self.location_id,
+            'start_date': self.start_date.strftime('%Y-%m-%d %H:%M:%S'),
+            'end_date': self.end_date.strftime('%Y-%m-%d %H:%M:%S') if self.end_date else None,
+            'notes': self.notes
+        }
     
-    def update(self, data):
-        """Actualizar los datos de la ubicación"""
-        for key, value in data.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-        self.updated_at = datetime.utcnow()
-        db.session.commit()
-    
-    def delete(self):
-        """Eliminar la ubicación (soft delete)"""
-        self.is_active = False
-        self.updated_at = datetime.utcnow()
-        db.session.commit() 
+    def __repr__(self):
+        return f'<KioskLocation {self.kiosk_id} -> {self.location_id}>' 

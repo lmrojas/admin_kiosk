@@ -155,7 +155,7 @@
                                     {{ kiosk.status|title }}
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('kiosk.detail', id=kiosk.id) }}">
+                                    <a href="{{ url_for('kiosks.detail', id=kiosk.id) }}">
                                         {{ kiosk.name }}
                                     </a>
                                 </td>
@@ -195,7 +195,7 @@
                                 <td>{{ kiosk.last_connection.strftime('%d/%m/%Y %H:%M:%S') if kiosk.last_connection else 'Nunca' }}</td>
                                 <td>
                                     <div class="action-buttons">
-                                        <a href="{{ url_for('kiosk.detail', id=kiosk.id) }}" 
+                                        <a href="{{ url_for('kiosks.detail', id=kiosk.id) }}" 
                                            class="btn btn-sm btn-outline-primary" 
                                            title="Ver detalles">
                                             <i class="fas fa-eye"></i>

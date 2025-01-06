@@ -46,33 +46,33 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Encabezado -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
             <h1 class="h3 mb-0">{{ kiosk.name }}</h1>
             <p class="text-muted mb-0">Serial: {{ kiosk.serial_number }}</p>
-        </div>
-        <div>
+            </div>
+            <div>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#locationHistoryModal">
                 <i class="fas fa-map-marked-alt me-1"></i>Historial de Ubicaciones
-            </button>
-        </div>
+                </button>
     </div>
+</div>
 
-    <div class="row">
+<div class="row">
         <!-- Información General -->
         <div class="col-md-4">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Información General</h5>
-                </div>
-                <div class="card-body">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Información General</h5>
+            </div>
+            <div class="card-body">
                     <div class="row g-3">
                         <div class="col-6">
                             <div class="metric-label">Estado</div>
                             <div class="metric-value">
                                 <span class="badge bg-{{ 'success' if kiosk.status == 'online' else 'danger' }}">
                                     {{ kiosk.status|title }}
-                                </span>
+                        </span>
                             </div>
                         </div>
                         <div class="col-6">
@@ -103,14 +103,14 @@
                 </div>
             </div>
         </div>
-
+        
         <!-- Métricas del Sistema -->
         <div class="col-md-8">
-            <div class="card mb-4">
-                <div class="card-header">
+        <div class="card mb-4">
+            <div class="card-header">
                     <h5 class="card-title mb-0">Métricas del Sistema</h5>
-                </div>
-                <div class="card-body">
+            </div>
+            <div class="card-body">
                     <div class="row g-3">
                         <!-- CPU -->
                         <div class="col-md-4">
@@ -231,7 +231,7 @@
                             <div class="card sensor-card">
                                 <div class="card-body">
                                     <h6 class="card-subtitle mb-2 text-muted">UPS</h6>
-                                    <div class="row">
+                    <div class="row">
                                         <div class="col-md-4">
                                             <div class="metric-label">Estado</div>
                                             <div class="metric-value">{{ kiosk.sensors_data_dict.ups.get('status', 'N/A') }}</div>
@@ -269,9 +269,9 @@
                     <div id="map"></div>
                 </div>
             </div>
-        </div>
-
-        <!-- Alertas -->
+                    </div>
+                    
+                    <!-- Alertas -->
         <div class="col-md-4">
             <div class="card mb-4">
                 <div class="card-header">
@@ -280,11 +280,11 @@
                 <div class="card-body">
                     {% set alerts = kiosk.calculate_alerts() %}
                     {% if alerts %}
-                        {% for alert in alerts %}
+                            {% for alert in alerts %}
                             <div class="alert alert-{{ alert.type }} py-2 px-3 mb-2">
-                                {{ alert.message }}
-                            </div>
-                        {% endfor %}
+                                    {{ alert.message }}
+                                </div>
+                            {% endfor %}
                     {% else %}
                         <p class="text-muted mb-0">No hay alertas activas</p>
                     {% endif %}
@@ -292,36 +292,36 @@
             </div>
         </div>
     </div>
-
+    
     <!-- Historial de Eventos -->
-    <div class="card">
-        <div class="card-header">
-            <h5 class="card-title mb-0">Historial de Eventos</h5>
-        </div>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Historial de Eventos</h5>
+            </div>
         <div class="card-body">
-            <div class="table-responsive">
+                <div class="table-responsive">
                 <table class="table table-hover history-table">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Tipo</th>
-                            <th>Mensaje</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for log in logs %}
+                        <thead>
                             <tr>
-                                <td>{{ log.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
-                                <td>
-                                    <span class="badge bg-{{ 'danger' if log.event_type == 'error' else 'info' }}">
-                                        {{ log.event_type }}
-                                    </span>
-                                </td>
-                                <td>{{ log.message }}</td>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Mensaje</th>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                    <tbody>
+                            {% for log in logs %}
+                                <tr>
+                                    <td>{{ log.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                                    <td>
+                                    <span class="badge bg-{{ 'danger' if log.event_type == 'error' else 'info' }}">
+                                            {{ log.event_type }}
+                                        </span>
+                                    </td>
+                                    <td>{{ log.message }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
             </div>
         </div>
     </div>
@@ -358,7 +358,7 @@
                                             <td>{{ "%.6f"|format(location.location.latitude) if location.location and location.location.latitude else 'N/A' }}</td>
                                             <td>{{ "%.6f"|format(location.location.longitude) if location.location and location.location.longitude else 'N/A' }}</td>
                                         </tr>
-                                    {% endfor %}
+                            {% endfor %}
                                 </tbody>
                             </table>
                         </div>
@@ -367,7 +367,7 @@
                     <div class="col-md-7">
                         <div id="historyMap" style="height: 400px;"></div>
                     </div>
-                </div>
+            </div>
             </div>
         </div>
     </div>
