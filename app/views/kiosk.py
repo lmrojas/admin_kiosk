@@ -6,11 +6,11 @@ from app.models.kiosk_log import KioskLog
 from app import db, cache
 from datetime import datetime
 import json
+from app.models.settings import Settings
 
 bp = Blueprint('kiosk', __name__, url_prefix='/kiosk')
 
 @bp.route('/')
-@cache.cached(timeout=30)
 def index():
     """Vista principal que muestra todos los kiosks"""
     kiosks = Kiosk.query.all()
@@ -108,7 +108,183 @@ def settings():
     kiosks = Kiosk.query.all()
     states = State.query.all()
     actions = Action.query.filter_by(is_active=True).all()
+    
+    # Obtener configuración actual
+    settings = {
+        'system_name': Settings.get_value('system_name', 'Admin Kiosk'),
+        'refresh_interval': int(Settings.get_value('refresh_interval', 5)),
+        'max_logs': int(Settings.get_value('max_logs', 100)),
+        'cpu_warning': int(Settings.get_value('cpu_warning', 80)),
+        'cpu_critical': int(Settings.get_value('cpu_critical', 90)),
+        'ram_warning': int(Settings.get_value('ram_warning', 85)),
+        'ram_critical': int(Settings.get_value('ram_critical', 95)),
+        'disk_warning': int(Settings.get_value('disk_warning', 85)),
+        'disk_critical': int(Settings.get_value('disk_critical', 95))
+    }
+    
     return render_template('kiosk/settings.html', 
                          kiosks=kiosks,
                          states=states, 
-                         actions=actions) 
+                         actions=actions,
+                         settings=settings) 
+
+@bp.route('/api/action/<int:id>', methods=['GET'])
+def get_action(id):
+    """Obtener detalles de una acción"""
+    action = Action.query.get_or_404(id)
+    return jsonify({
+        'id': action.id,
+        'name': action.name,
+        'command': action.command,
+        'icon': action.icon,
+        'requires_confirmation': action.requires_confirmation
+    })
+
+@bp.route('/api/action/<int:id>', methods=['DELETE'])
+def delete_action(id):
+    """Eliminar una acción"""
+    action = Action.query.get_or_404(id)
+    db.session.delete(action)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@bp.route('/api/action', methods=['POST'])
+def create_action():
+    """Crear o actualizar una acción"""
+    data = request.get_json()
+    
+    if 'id' in data:
+        action = Action.query.get_or_404(data['id'])
+    else:
+        action = Action()
+        db.session.add(action)
+    
+    action.name = data['name']
+    action.command = data['command']
+    action.icon = data.get('icon', 'fas fa-cog')
+    action.requires_confirmation = data.get('requires_confirmation', False)
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+@bp.route('/api/state/<int:id>', methods=['GET'])
+def get_state(id):
+    """Obtener detalles de un estado"""
+    state = State.query.get_or_404(id)
+    return jsonify({
+        'id': state.id,
+        'name': state.name,
+        'color': state.color,
+        'description': state.description
+    })
+
+@bp.route('/api/state/<int:id>', methods=['DELETE'])
+def delete_state(id):
+    """Eliminar un estado"""
+    state = State.query.get_or_404(id)
+    db.session.delete(state)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@bp.route('/api/state', methods=['POST'])
+def create_state():
+    """Crear o actualizar un estado"""
+    data = request.get_json()
+    
+    if 'id' in data:
+        state = State.query.get_or_404(data['id'])
+    else:
+        state = State()
+        db.session.add(state)
+    
+    state.name = data['name']
+    state.color = data['color']
+    state.description = data.get('description', '')
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+@bp.route('/api/settings/general', methods=['POST'])
+def update_general_settings():
+    """Actualizar configuración general"""
+    data = request.get_json()
+    
+    Settings.set_value('system_name', data.get('system_name', 'Admin Kiosk'))
+    Settings.set_value('refresh_interval', str(data.get('refresh_interval', 5)))
+    Settings.set_value('max_logs', str(data.get('max_logs', 100)))
+    
+    return jsonify({'success': True})
+
+@bp.route('/api/settings/alerts', methods=['POST'])
+def update_alert_settings():
+    """Actualizar configuración de alertas"""
+    data = request.get_json()
+    
+    Settings.set_value('cpu_warning', str(data.get('cpu_warning', 80)))
+    Settings.set_value('cpu_critical', str(data.get('cpu_critical', 90)))
+    Settings.set_value('ram_warning', str(data.get('ram_warning', 85)))
+    Settings.set_value('ram_critical', str(data.get('ram_critical', 95)))
+    Settings.set_value('disk_warning', str(data.get('disk_warning', 85)))
+    Settings.set_value('disk_critical', str(data.get('disk_critical', 95)))
+    
+    return jsonify({'success': True})
+
+@bp.route('/api/filter', methods=['GET'])
+def filter_kiosks():
+    """Endpoint para filtrar kiosks"""
+    # Obtener parámetros de filtrado
+    status = request.args.getlist('status[]')  # Lista de estados seleccionados
+    location_id = request.args.get('location')
+    alert_level = request.args.get('alert')
+    search = request.args.get('search')
+    
+    # Construir query base
+    query = Kiosk.query
+    
+    # Aplicar filtros
+    if status:
+        query = query.filter(Kiosk.status.in_(status))
+    
+    if location_id:
+        query = query.filter(Kiosk.location_id == location_id)
+    
+    if search:
+        search = f"%{search}%"
+        query = query.filter(
+            db.or_(
+                Kiosk.name.ilike(search),
+                Kiosk.serial_number.ilike(search)
+            )
+        )
+    
+    # Ejecutar query
+    kiosks = query.all()
+    
+    # Filtrar por alert_level después de obtener los resultados
+    if alert_level:
+        kiosks = [k for k in kiosks if k.alert_level == alert_level]
+    
+    # Preparar datos para respuesta
+    kiosks_data = []
+    for kiosk in kiosks:
+        sensors = kiosk.sensors_data_dict
+        kiosks_data.append({
+            'id': kiosk.id,
+            'status': kiosk.status,
+            'name': kiosk.name,
+            'serial_number': kiosk.serial_number,
+            'location_id': kiosk.location_id,
+            'location': kiosk.location.name if kiosk.location else 'No asignada',
+            'ip_address': kiosk.ip_address or 'N/A',
+            'cpu_usage': sensors.get('cpu_usage', 0),
+            'ram_usage': sensors.get('ram_usage', 0),
+            'disk_usage': sensors.get('disk_usage', 0),
+            'temperature': sensors.get('temperature', 0),
+            'alert_level': kiosk.alert_level,
+            'last_connection': kiosk.last_connection.strftime('%d/%m/%Y %H:%M:%S') if kiosk.last_connection else 'Nunca'
+        })
+    
+    return jsonify({
+        'kiosks': kiosks_data,
+        'total': len(kiosks_data)
+    }) 

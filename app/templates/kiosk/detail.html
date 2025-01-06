@@ -85,6 +85,20 @@
                                 {{ kiosk.last_connection.strftime('%d/%m/%Y %H:%M:%S') if kiosk.last_connection else 'Nunca' }}
                             </div>
                         </div>
+                        <div class="col-12 mt-3">
+                            <div class="metric-label">Acciones</div>
+                            <div class="d-flex gap-2 mt-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="reiniciarKiosk({{ kiosk.id }})">
+                                    <i class="fas fa-sync-alt me-1"></i>Reiniciar
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="apagarKiosk({{ kiosk.id }})">
+                                    <i class="fas fa-power-off me-1"></i>Apagar
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="actualizarKiosk({{ kiosk.id }})">
+                                    <i class="fas fa-download me-1"></i>Actualizar
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -416,5 +430,54 @@ document.addEventListener('DOMContentLoaded', function() {
         historyMap.invalidateSize();
     });
 });
+
+// Funciones para acciones del kiosk
+function reiniciarKiosk(kioskId) {
+    if (confirm('¿Está seguro que desea reiniciar este kiosk?')) {
+        $.ajax({
+            url: `/kiosk/api/${kioskId}/reboot`,
+            method: 'POST',
+            success: function(response) {
+                showNotification('success', 'Comando de reinicio enviado exitosamente');
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al enviar comando de reinicio';
+                showNotification('danger', message);
+            }
+        });
+    }
+}
+
+function apagarKiosk(kioskId) {
+    if (confirm('¿Está seguro que desea apagar este kiosk?')) {
+        $.ajax({
+            url: `/kiosk/api/${kioskId}/shutdown`,
+            method: 'POST',
+            success: function(response) {
+                showNotification('success', 'Comando de apagado enviado exitosamente');
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al enviar comando de apagado';
+                showNotification('danger', message);
+            }
+        });
+    }
+}
+
+function actualizarKiosk(kioskId) {
+    if (confirm('¿Está seguro que desea actualizar este kiosk?')) {
+        $.ajax({
+            url: `/kiosk/api/${kioskId}/update`,
+            method: 'POST',
+            success: function(response) {
+                showNotification('success', 'Comando de actualización enviado exitosamente');
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al enviar comando de actualización';
+                showNotification('danger', message);
+            }
+        });
+    }
+}
 </script>
 {% endblock %} 

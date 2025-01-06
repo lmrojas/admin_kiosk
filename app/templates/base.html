@@ -252,44 +252,43 @@
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                         {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Bootstrap Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <!-- Socket.IO -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Custom JS -->
+    <!-- Custom Scripts -->
     <script>
-    $(document).ready(function() {
         // Toggle sidebar on mobile
-        $('.toggle-sidebar').click(function() {
-            $('.sidebar').toggleClass('show');
+        document.querySelector('.toggle-sidebar').addEventListener('click', function() {
+            document.querySelector('.sidebar').classList.toggle('show');
         });
-        
-        // Close sidebar when clicking outside on mobile
-        $(document).click(function(event) {
-            if (!$(event.target).closest('.sidebar, .toggle-sidebar').length) {
-                $('.sidebar').removeClass('show');
-            }
-        });
-        
-        // Auto-hide alerts after 5 seconds
-        $('.alert').delay(5000).fadeOut(500, function() {
-            $(this).alert('close');
-        });
-    });
+
+        // Show notifications
+        function showNotification(type, message) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.querySelector('.main-content').insertAdjacentElement('afterbegin', alert);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alert.classList.remove('show');
+                setTimeout(() => alert.remove(), 150);
+            }, 5000);
+        }
     </script>
     
     {% block extra_js %}{% endblock %}

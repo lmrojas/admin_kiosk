@@ -21,15 +21,15 @@
                     <form id="generalSettingsForm">
                         <div class="mb-3">
                             <label for="systemName" class="form-label">Nombre del Sistema</label>
-                            <input type="text" class="form-control" id="systemName" value="Admin Kiosk">
+                            <input type="text" class="form-control" id="systemName" value="{{ settings.system_name }}">
                         </div>
                         <div class="mb-3">
                             <label for="refreshInterval" class="form-label">Intervalo de Actualización (segundos)</label>
-                            <input type="number" class="form-control" id="refreshInterval" value="5">
+                            <input type="number" class="form-control" id="refreshInterval" value="{{ settings.refresh_interval }}">
                         </div>
                         <div class="mb-3">
                             <label for="maxLogs" class="form-label">Máximo de Logs a Mostrar</label>
-                            <input type="number" class="form-control" id="maxLogs" value="100">
+                            <input type="number" class="form-control" id="maxLogs" value="{{ settings.max_logs }}">
                         </div>
                         <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                     </form>
@@ -51,14 +51,14 @@
                                 <div class="col-6">
                                     <div class="input-group">
                                         <span class="input-group-text">Advertencia</span>
-                                        <input type="number" class="form-control" id="cpuWarning" value="80">
+                                        <input type="number" class="form-control" id="cpuWarning" value="{{ settings.cpu_warning }}">
                                         <span class="input-group-text">%</span>
                                     </div>
                                 </div>
                                 <div class="col-6">
                                     <div class="input-group">
                                         <span class="input-group-text">Crítico</span>
-                                        <input type="number" class="form-control" id="cpuCritical" value="90">
+                                        <input type="number" class="form-control" id="cpuCritical" value="{{ settings.cpu_critical }}">
                                         <span class="input-group-text">%</span>
                                     </div>
                                 </div>
@@ -70,14 +70,14 @@
                                 <div class="col-6">
                                     <div class="input-group">
                                         <span class="input-group-text">Advertencia</span>
-                                        <input type="number" class="form-control" id="ramWarning" value="85">
+                                        <input type="number" class="form-control" id="ramWarning" value="{{ settings.ram_warning }}">
                                         <span class="input-group-text">%</span>
                                     </div>
                                 </div>
                                 <div class="col-6">
                                     <div class="input-group">
                                         <span class="input-group-text">Crítico</span>
-                                        <input type="number" class="form-control" id="ramCritical" value="95">
+                                        <input type="number" class="form-control" id="ramCritical" value="{{ settings.ram_critical }}">
                                         <span class="input-group-text">%</span>
                                     </div>
                                 </div>
@@ -89,14 +89,14 @@
                                 <div class="col-6">
                                     <div class="input-group">
                                         <span class="input-group-text">Advertencia</span>
-                                        <input type="number" class="form-control" id="diskWarning" value="85">
+                                        <input type="number" class="form-control" id="diskWarning" value="{{ settings.disk_warning }}">
                                         <span class="input-group-text">%</span>
                                     </div>
                                 </div>
                                 <div class="col-6">
                                     <div class="input-group">
                                         <span class="input-group-text">Crítico</span>
-                                        <input type="number" class="form-control" id="diskCritical" value="95">
+                                        <input type="number" class="form-control" id="diskCritical" value="{{ settings.disk_critical }}">
                                         <span class="input-group-text">%</span>
                                     </div>
                                 </div>
@@ -281,43 +281,150 @@
 <script>
 // Funciones para manejar las acciones
 function editAction(id) {
-    // Implementar lógica para editar acción
+    $.get(`/kiosk/api/action/${id}`, function(data) {
+        $('#actionName').val(data.name);
+        $('#actionCommand').val(data.command);
+        $('#actionIcon').val(data.icon);
+        $('#actionConfirmation').prop('checked', data.requires_confirmation);
+        $('#addActionModal').modal('show');
+    });
 }
 
 function deleteAction(id) {
     if (confirm('¿Está seguro de que desea eliminar esta acción?')) {
-        // Implementar lógica para eliminar acción
+        $.ajax({
+            url: `/kiosk/api/action/${id}`,
+            method: 'DELETE',
+            success: function() {
+                showNotification('success', 'Acción eliminada exitosamente');
+                location.reload();
+            },
+            error: function() {
+                showNotification('danger', 'Error al eliminar la acción');
+            }
+        });
     }
 }
 
 function saveAction() {
-    // Implementar lógica para guardar acción
+    const data = {
+        name: $('#actionName').val(),
+        command: $('#actionCommand').val(),
+        icon: $('#actionIcon').val(),
+        requires_confirmation: $('#actionConfirmation').is(':checked')
+    };
+
+    $.ajax({
+        url: '/kiosk/api/action',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            showNotification('success', 'Acción guardada exitosamente');
+            $('#addActionModal').modal('hide');
+            location.reload();
+        },
+        error: function() {
+            showNotification('danger', 'Error al guardar la acción');
+        }
+    });
 }
 
 // Funciones para manejar los estados
 function editState(id) {
-    // Implementar lógica para editar estado
+    $.get(`/kiosk/api/state/${id}`, function(data) {
+        $('#stateName').val(data.name);
+        $('#stateColor').val(data.color);
+        $('#stateDescription').val(data.description);
+        $('#addStateModal').modal('show');
+    });
 }
 
 function deleteState(id) {
     if (confirm('¿Está seguro de que desea eliminar este estado?')) {
-        // Implementar lógica para eliminar estado
+        $.ajax({
+            url: `/kiosk/api/state/${id}`,
+            method: 'DELETE',
+            success: function() {
+                showNotification('success', 'Estado eliminado exitosamente');
+                location.reload();
+            },
+            error: function() {
+                showNotification('danger', 'Error al eliminar el estado');
+            }
+        });
     }
 }
 
 function saveState() {
-    // Implementar lógica para guardar estado
+    const data = {
+        name: $('#stateName').val(),
+        color: $('#stateColor').val(),
+        description: $('#stateDescription').val()
+    };
+
+    $.ajax({
+        url: '/kiosk/api/state',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            showNotification('success', 'Estado guardado exitosamente');
+            $('#addStateModal').modal('hide');
+            location.reload();
+        },
+        error: function() {
+            showNotification('danger', 'Error al guardar el estado');
+        }
+    });
 }
 
 // Manejar envío de formularios
 document.getElementById('generalSettingsForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    // Implementar lógica para guardar configuración general
+    const data = {
+        system_name: $('#systemName').val(),
+        refresh_interval: $('#refreshInterval').val(),
+        max_logs: $('#maxLogs').val()
+    };
+
+    $.ajax({
+        url: '/kiosk/api/settings/general',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            showNotification('success', 'Configuración guardada exitosamente');
+        },
+        error: function() {
+            showNotification('danger', 'Error al guardar la configuración');
+        }
+    });
 });
 
 document.getElementById('alertSettingsForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    // Implementar lógica para guardar configuración de alertas
+    const data = {
+        cpu_warning: $('#cpuWarning').val(),
+        cpu_critical: $('#cpuCritical').val(),
+        ram_warning: $('#ramWarning').val(),
+        ram_critical: $('#ramCritical').val(),
+        disk_warning: $('#diskWarning').val(),
+        disk_critical: $('#diskCritical').val()
+    };
+
+    $.ajax({
+        url: '/kiosk/api/settings/alerts',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            showNotification('success', 'Configuración de alertas guardada exitosamente');
+        },
+        error: function() {
+            showNotification('danger', 'Error al guardar la configuración de alertas');
+        }
+    });
 });
 </script>
 {% endblock %} 

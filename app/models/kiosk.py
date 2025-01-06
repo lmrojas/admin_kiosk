@@ -6,6 +6,9 @@ class Kiosk(db.Model):
     """Modelo para los kiosks"""
     __tablename__ = 'kiosks'
     
+    # Estados válidos
+    VALID_STATES = ['online', 'offline', 'warning']
+    
     id = db.Column(db.Integer, primary_key=True)
     serial_number = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
@@ -32,6 +35,46 @@ class Kiosk(db.Model):
         'signal': {'warning': 30},
         'battery': {'critical': 10}
     }
+    
+    @property
+    def alert_level(self):
+        """Calcular nivel de alerta basado en métricas"""
+        sensors = self.sensors_data_dict
+        
+        # Si está offline, retornar high
+        if self.status == 'offline':
+            return 'high'
+            
+        # Verificar métricas críticas
+        if (sensors.get('cpu_usage', 0) > self.THRESHOLDS['cpu']['critical'] or
+            sensors.get('ram_usage', 0) > self.THRESHOLDS['ram']['critical'] or
+            sensors.get('disk_usage', 0) > self.THRESHOLDS['disk']['critical'] or
+            sensors.get('temperature', 0) > self.THRESHOLDS['temperature']['critical']):
+            return 'high'
+            
+        # Verificar métricas de advertencia
+        if (sensors.get('cpu_usage', 0) > self.THRESHOLDS['cpu']['warning'] or
+            sensors.get('ram_usage', 0) > self.THRESHOLDS['ram']['warning'] or
+            sensors.get('disk_usage', 0) > self.THRESHOLDS['disk']['warning'] or
+            sensors.get('temperature', 0) > self.THRESHOLDS['temperature']['warning']):
+            return 'medium'
+            
+        return 'none'
+    
+    def update_status(self):
+        """Actualizar estado basado en métricas y última conexión"""
+        # Si no hay conexión en los últimos 5 minutos, marcar como offline
+        if not self.last_connection or (datetime.utcnow() - self.last_connection).total_seconds() > 300:
+            self.status = 'offline'
+            return
+            
+        # Si hay alertas críticas, marcar como warning
+        if self.alert_level == 'high':
+            self.status = 'warning'
+            return
+            
+        # Si todo está bien, marcar como online
+        self.status = 'online'
     
     @property
     def sensors_data_dict(self):

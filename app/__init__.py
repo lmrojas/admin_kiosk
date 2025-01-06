@@ -39,6 +39,7 @@ def create_app(config=None):
     from app.models.action import Action
     from app.models.kiosk_log import KioskLog
     from app.models.user import User
+    from app.models.settings import Settings
     
     # Registrar blueprints
     from app.views import kiosk, location

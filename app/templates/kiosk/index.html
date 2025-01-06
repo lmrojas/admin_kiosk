@@ -113,7 +113,12 @@
             <div class="card filter-card">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Búsqueda</h6>
-                    <input type="text" class="form-control" id="searchFilter" placeholder="Buscar por nombre o serial...">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="searchFilter" placeholder="Buscar por nombre o serial...">
+                        <button class="btn btn-primary" type="button" id="searchBtn">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -295,12 +300,13 @@
 $(document).ready(function() {
     // Inicializar DataTable
     const table = $('#kiosksTable').DataTable({
+        pageLength: 25,
         language: {
             url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
         },
-        order: [[0, 'asc']],
-        pageLength: 25,
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+        order: [[1, 'asc']], // Ordenar por nombre por defecto
+        dom: 'rt<"bottom"ip>', // Solo mostrar tabla, paginación e info
+        processing: true
     });
     
     // WebSocket para actualizaciones en tiempo real
@@ -311,43 +317,123 @@ $(document).ready(function() {
     });
     
     socket.on('kiosk_update', function(data) {
-        const row = $(`tr[data-kiosk-id="${data.kiosk_id}"]`);
-        if (row.length) {
-            location.reload();
-        }
+        applyFilters();
     });
-    
-    // Filtros personalizados
-    $('.filter-status').on('change', function() {
+
+    // Función para aplicar filtros
+    function applyFilters() {
+        console.log('Aplicando filtros...');
+        
+        // Obtener valores de filtros
         const checkedStatuses = $('.filter-status:checked').map(function() {
             return $(this).val();
         }).get();
         
-        table.column(0).search(checkedStatuses.join('|'), true, false).draw();
+        const selectedLocation = $('#locationFilter').val();
+        const selectedAlert = $('#alertFilter').val();
+        const searchText = $('#searchFilter').val();
+
+        console.log('Filtros:', {
+            status: checkedStatuses,
+            location: selectedLocation,
+            alert: selectedAlert,
+            search: searchText
+        });
+        
+        // Mostrar indicador de carga
+        $('#kiosksTable tbody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin me-2"></i>Cargando...</td></tr>');
+        
+        // Realizar petición AJAX
+        $.ajax({
+            url: '/kiosk/api/filter',
+            method: 'GET',
+            data: {
+                'status[]': checkedStatuses,
+                'location': selectedLocation,
+                'alert': selectedAlert,
+                'search': searchText
+            },
+            success: function(response) {
+                console.log('Respuesta del servidor:', response);
+                
+                // Limpiar y actualizar tabla
+                table.clear();
+                
+                if (response.kiosks.length === 0) {
+                    $('#kiosksTable tbody').html('<tr><td colspan="11" class="text-center">No se encontraron kioscos con los filtros seleccionados</td></tr>');
+                } else {
+                    response.kiosks.forEach(function(kiosk) {
+                        table.row.add([
+                            `<span class="kiosk-status status-${kiosk.status}"></span>${kiosk.status.charAt(0).toUpperCase() + kiosk.status.slice(1)}`,
+                            `<a href="/kiosk/${kiosk.id}">${kiosk.name}</a>`,
+                            kiosk.serial_number,
+                            kiosk.location,
+                            kiosk.ip_address,
+                            `<span class="badge metric-badge bg-${kiosk.cpu_usage > 90 ? 'danger' : kiosk.cpu_usage > 80 ? 'warning' : 'success'}">${kiosk.cpu_usage.toFixed(1)}%</span>`,
+                            `<span class="badge metric-badge bg-${kiosk.ram_usage > 95 ? 'danger' : kiosk.ram_usage > 85 ? 'warning' : 'success'}">${kiosk.ram_usage.toFixed(1)}%</span>`,
+                            `<span class="badge metric-badge bg-${kiosk.disk_usage > 95 ? 'danger' : kiosk.disk_usage > 85 ? 'warning' : 'success'}">${kiosk.disk_usage.toFixed(1)}%</span>`,
+                            `<span class="badge metric-badge bg-${kiosk.temperature > 40 ? 'danger' : kiosk.temperature > 35 ? 'warning' : 'success'}">${kiosk.temperature.toFixed(1)}°C</span>`,
+                            kiosk.last_connection,
+                            `<div class="action-buttons">
+                                <a href="/kiosk/${kiosk.id}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#assignLocationModal" data-kiosk-id="${kiosk.id}" title="Asignar ubicación">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteKiosk('${kiosk.id}')" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>`
+                        ]);
+                    });
+                    table.draw();
+                }
+                
+                // Actualizar contador
+                $('.total-kiosks').text(`Mostrando ${response.total} kioscos`);
+            },
+            error: function(xhr) {
+                console.error('Error al filtrar:', xhr);
+                showNotification('danger', 'Error al filtrar los kioscos');
+            }
+        });
+    }
+    
+    // Eventos de filtrado
+    $('#searchBtn').on('click', function(e) {
+        e.preventDefault();
+        console.log('Botón de búsqueda clickeado');
+        applyFilters();
     });
     
-    $('#locationFilter').on('change', function() {
-        const locationId = $(this).val();
-        if (locationId) {
-            table.column(3).search(locationId).draw();
-        } else {
-            table.column(3).search('').draw();
+    $('.filter-status').on('change', applyFilters);
+    $('#locationFilter').on('change', applyFilters);
+    $('#alertFilter').on('change', applyFilters);
+    
+    // Permitir búsqueda con Enter
+    $('#searchFilter').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            applyFilters();
         }
     });
     
-    $('#alertFilter').on('change', function() {
-        const alertLevel = $(this).val();
-        if (alertLevel) {
-            $('tr').show();
-            $('tr').not(`[data-alert-level="${alertLevel}"]`).hide();
-        } else {
-            $('tr').show();
-        }
-    });
+    // Aplicar filtros iniciales
+    applyFilters();
     
-    $('#searchFilter').on('keyup', function() {
-        table.search(this.value).draw();
-    });
+    // Función debounce para evitar muchas peticiones durante la búsqueda
+    function debounce(func, wait) {
+        let timeout;
+        return function() {
+            const context = this;
+            const args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(function() {
+                func.apply(context, args);
+            }, wait);
+        };
+    }
     
     // Agregar nuevo kiosk
     $('#saveKioskBtn').click(function() {
@@ -365,7 +451,7 @@ $(document).ready(function() {
             success: function(response) {
                 showNotification('success', 'Kiosk agregado exitosamente');
                 $('#addKioskModal').modal('hide');
-                location.reload();
+                applyFilters(); // Recargar datos en lugar de recargar página
             },
             error: function(xhr) {
                 const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al agregar el kiosk';
@@ -395,7 +481,7 @@ $(document).ready(function() {
             success: function(response) {
                 showNotification('success', 'Ubicación asignada exitosamente');
                 $('#assignLocationModal').modal('hide');
-                location.reload();
+                applyFilters(); // Recargar datos en lugar de recargar página
             },
             error: function(xhr) {
                 const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al asignar la ubicación';
@@ -412,7 +498,7 @@ function deleteKiosk(kioskId) {
             method: 'DELETE',
             success: function(response) {
                 showNotification('success', 'Kiosk eliminado exitosamente');
-                location.reload();
+                applyFilters(); // Recargar datos en lugar de recargar página
             },
             error: function(xhr) {
                 const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al eliminar el kiosk';
