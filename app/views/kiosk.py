@@ -8,6 +8,7 @@ from app import db, cache
 from datetime import datetime
 import json
 from app.models.settings import Settings
+from app.models.location import Location
 
 bp = Blueprint('kiosk', __name__, url_prefix='/kiosk')
 
@@ -17,7 +18,12 @@ def index():
     kiosks = Kiosk.query.all()
     states = State.query.all()
     actions = Action.query.filter_by(is_active=True).all()
-    return render_template('kiosk/index.html', kiosks=kiosks, states=states, actions=actions)
+    locations = Location.query.all()
+    return render_template('kiosk/index.html', 
+                         kiosks=kiosks, 
+                         states=states, 
+                         actions=actions,
+                         locations=locations)
 
 @bp.route('/<int:id>')
 def detail(id):
