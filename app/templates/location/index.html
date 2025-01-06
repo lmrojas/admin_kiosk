@@ -162,8 +162,8 @@
                 <h5 class="modal-title">Agregar Ubicación</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <form id="addLocationForm">
+            <form id="addLocationForm" method="POST" action="{{ url_for('location.add_location') }}">
+                <div class="modal-body">
                     <div class="mb-3">
                         <label for="name" class="form-label">Nombre</label>
                         <input type="text" class="form-control" id="name" name="name" required>
@@ -186,12 +186,12 @@
                             </div>
                         </div>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="saveLocationBtn">Guardar</button>
-            </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -276,6 +276,8 @@
 <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(document).ready(function() {
+    console.log('Document ready');
+    
     // Inicializar DataTable
     const table = $('#locationsTable').DataTable({
         language: {
@@ -296,22 +298,15 @@ $(document).ready(function() {
     const bounds = L.latLngBounds();
     
     {% for location in locations %}
-        const lat = {{ location.latitude }};
-        const lng = {{ location.longitude }};
-        const name = '{{ location.name }}';
-        const address = '{{ location.address }}';
-        const kioskCount = {{ location.kiosks|length }};
-        
-        const marker = L.marker([lat, lng])
+        markers.push(L.marker([{{ location.latitude }}, {{ location.longitude }}])
             .bindPopup(`
-                <strong>${name}</strong><br>
-                ${address}<br>
-                <small class="text-muted">${kioskCount} kioscos</small>
+                <strong>{{ location.name }}</strong><br>
+                {{ location.address }}<br>
+                <small class="text-muted">{{ location.kiosks|length }} kioscos</small>
             `)
-            .addTo(map);
+            .addTo(map));
         
-        markers.push(marker);
-        bounds.extend([lat, lng]);
+        bounds.extend([{{ location.latitude }}, {{ location.longitude }}]);
     {% endfor %}
     
     if (markers.length > 0) {
@@ -320,28 +315,35 @@ $(document).ready(function() {
         map.setView([0, 0], 2);
     }
     
-    // Agregar nueva ubicación
+    // Agregar ubicación
     $('#saveLocationBtn').click(function() {
         const formData = {
             name: $('#name').val(),
             address: $('#address').val(),
-            latitude: parseFloat($('#latitude').val()),
-            longitude: parseFloat($('#longitude').val())
+            latitude: $('#latitude').val(),
+            longitude: $('#longitude').val()
         };
-        
+
+        if (!formData.name || !formData.address || !formData.latitude || !formData.longitude) {
+            alert('Por favor complete todos los campos');
+            return;
+        }
+
         $.ajax({
             url: '/location/api/add',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(formData),
             success: function(response) {
-                showNotification('success', 'Ubicación agregada exitosamente');
-                $('#addLocationModal').modal('hide');
-                location.reload();
+                if (response.success) {
+                    $('#addLocationModal').modal('hide');
+                    window.location.reload();
+                } else {
+                    alert(response.error || 'Error al guardar la ubicación');
+                }
             },
             error: function(xhr) {
-                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al agregar la ubicación';
-                showNotification('danger', message);
+                alert('Error al guardar la ubicación');
             }
         });
     });

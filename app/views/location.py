@@ -38,22 +38,39 @@ def kiosk_history(kiosk_id):
 @bp.route('/api/add', methods=['POST'])
 def add_location():
     """API para agregar una nueva ubicación"""
-    data = request.get_json()
-    
     try:
+        # Obtener datos del form
+        name = request.form.get('name')
+        address = request.form.get('address')
+        latitude = request.form.get('latitude')
+        longitude = request.form.get('longitude')
+        
+        # Validar datos requeridos
+        if not all([name, address, latitude, longitude]):
+            flash('Por favor complete todos los campos', 'error')
+            return redirect(url_for('location.index'))
+            
+        # Crear nueva ubicación
         location = Location(
-            name=data['name'],
-            address=data['address'],
-            latitude=data['latitude'],
-            longitude=data['longitude']
+            name=name,
+            address=address,
+            latitude=float(latitude),
+            longitude=float(longitude)
         )
+        
         db.session.add(location)
         db.session.commit()
         
-        return jsonify({'message': 'Ubicación creada exitosamente', 'location': location.to_dict()}), 201
+        flash('Ubicación agregada exitosamente', 'success')
+        return redirect(url_for('location.index'))
+        
+    except ValueError:
+        flash('Valores inválidos para latitud/longitud', 'error')
+        return redirect(url_for('location.index'))
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': f'Error al crear la ubicación: {str(e)}'}), 400
+        flash(f'Error al crear la ubicación: {str(e)}', 'error')
+        return redirect(url_for('location.index'))
 
 @bp.route('/api/update/<int:location_id>', methods=['PUT'])
 def update_location(location_id):
