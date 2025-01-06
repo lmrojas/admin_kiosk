@@ -189,22 +189,35 @@
                                         <div class="row g-2">
                                             <div class="col-6">
                                                 <div class="metric-label">Latencia</div>
-                                                <div class="metric-value">{{ kiosk.sensors_data_dict.network.latency|default(0) }}ms</div>
+                                                {% if kiosk.sensors_data_dict.get('network') %}
+                                                <div class="metric-value">{{ kiosk.sensors_data_dict.network.get('latency', 0) }}ms</div>
+                                                {% else %}
+                                                <div class="metric-value">N/A</div>
+                                                {% endif %}
                                             </div>
                                             <div class="col-6">
                                                 <div class="metric-label">Señal</div>
-                                                {% set signal = kiosk.sensors_data_dict.network.signal_strength|default(0)|float %}
-                                                <div class="metric-value {{ 'text-warning' if signal < 30 }}">
-                                                    {{ "%.1f"|format(signal) }}%
-                                                </div>
+                                                {% if kiosk.sensors_data_dict.get('network') %}
+                                                <div class="metric-value">{{ kiosk.sensors_data_dict.network.get('signal_strength', 0) }}%</div>
+                                                {% else %}
+                                                <div class="metric-value">N/A</div>
+                                                {% endif %}
                                             </div>
                                             <div class="col-6">
                                                 <div class="metric-label">Descarga</div>
-                                                <div class="metric-value">{{ "%.1f"|format(kiosk.sensors_data_dict.network.download_speed|default(0)) }} Mbps</div>
+                                                {% if kiosk.sensors_data_dict.get('network') %}
+                                                <div class="metric-value">{{ kiosk.sensors_data_dict.network.get('download_speed', 0) }} Mbps ↓</div>
+                                                {% else %}
+                                                <div class="metric-value">N/A</div>
+                                                {% endif %}
                                             </div>
                                             <div class="col-6">
                                                 <div class="metric-label">Subida</div>
-                                                <div class="metric-value">{{ "%.1f"|format(kiosk.sensors_data_dict.network.upload_speed|default(0)) }} Mbps</div>
+                                                {% if kiosk.sensors_data_dict.get('network') %}
+                                                <div class="metric-value">{{ kiosk.sensors_data_dict.network.get('upload_speed', 0) }} Mbps ↑</div>
+                                                {% else %}
+                                                <div class="metric-value">N/A</div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -213,7 +226,7 @@
                         </div>
                         
                         <!-- UPS -->
-                        {% if kiosk.sensors_data_dict.ups %}
+                        {% if kiosk.sensors_data_dict.get('ups') %}
                         <div class="col-md-12">
                             <div class="card sensor-card">
                                 <div class="card-body">
@@ -221,23 +234,22 @@
                                     <div class="row">
                                         <div class="col-md-4">
                                             <div class="metric-label">Estado</div>
-                                            <div class="metric-value">{{ kiosk.sensors_data_dict.ups.status|title }}</div>
+                                            <div class="metric-value">{{ kiosk.sensors_data_dict.ups.get('status', 'N/A') }}</div>
                                         </div>
                                         <div class="col-md-4">
-                                            {% set battery = kiosk.sensors_data_dict.ups.battery_level|default(0)|float %}
                                             <div class="metric-label">Batería</div>
-                                            <div class="metric-value {{ 'text-danger' if battery < 10 }}">
-                                                {{ "%.1f"|format(battery) }}%
-                                            </div>
+                                            <div class="metric-value">{{ kiosk.sensors_data_dict.ups.get('battery_level', 0) }}%</div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="metric-label">Tiempo Estimado</div>
-                                            <div class="metric-value">{{ kiosk.sensors_data_dict.ups.estimated_runtime }} min</div>
+                                            <div class="metric-value">{{ kiosk.sensors_data_dict.ups.get('estimated_runtime', 0) }} min</div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        {% else %}
+                        <div class="metric-value">N/A</div>
                         {% endif %}
                     </div>
                 </div>
@@ -343,8 +355,8 @@
                                             data-lng="{{ location.location.longitude }}"
                                             data-name="{{ location.name }}">
                                             <td>{{ location.name }}</td>
-                                            <td>{{ "%.6f"|format(location.location.latitude) }}</td>
-                                            <td>{{ "%.6f"|format(location.location.longitude) }}</td>
+                                            <td>{{ "%.6f"|format(location.location.latitude) if location.location and location.location.latitude else 'N/A' }}</td>
+                                            <td>{{ "%.6f"|format(location.location.longitude) if location.location and location.location.longitude else 'N/A' }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>

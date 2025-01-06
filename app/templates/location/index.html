@@ -109,8 +109,8 @@
                         <tr data-location-id="{{ location.id }}">
                             <td>{{ location.name }}</td>
                             <td>{{ location.address }}</td>
-                            <td>{{ "%.6f"|format(location.latitude) }}</td>
-                            <td>{{ "%.6f"|format(location.longitude) }}</td>
+                            <td>{{ "%.6f"|format(location.latitude) if location.latitude is not none else 'N/A' }}</td>
+                            <td>{{ "%.6f"|format(location.longitude) if location.longitude is not none else 'N/A' }}</td>
                             <td>
                                 <span class="badge bg-primary">{{ location.kiosks|length }}</span>
                                 {% if location.kiosks %}

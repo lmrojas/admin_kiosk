@@ -3,6 +3,7 @@ from app.models.kiosk import Kiosk
 from app.models.state import State
 from app.models.action import Action
 from app.models.kiosk_log import KioskLog
+from app.models.location import KioskLocation
 from app import db, cache
 from datetime import datetime
 import json
@@ -232,59 +233,88 @@ def update_alert_settings():
 @bp.route('/api/filter', methods=['GET'])
 def filter_kiosks():
     """Endpoint para filtrar kiosks"""
-    # Obtener parámetros de filtrado
-    status = request.args.getlist('status[]')  # Lista de estados seleccionados
-    location_id = request.args.get('location')
-    alert_level = request.args.get('alert')
-    search = request.args.get('search')
-    
-    # Construir query base
-    query = Kiosk.query
-    
-    # Aplicar filtros
-    if status:
-        query = query.filter(Kiosk.status.in_(status))
-    
-    if location_id:
-        query = query.filter(Kiosk.location_id == location_id)
-    
-    if search:
-        search = f"%{search}%"
-        query = query.filter(
-            db.or_(
-                Kiosk.name.ilike(search),
-                Kiosk.serial_number.ilike(search)
+    try:
+        # Obtener parámetros de filtrado
+        status = request.args.getlist('status[]')  # Lista de estados seleccionados
+        location_id = request.args.get('location')
+        alert_level = request.args.get('alert')
+        search = request.args.get('search')
+        
+        # Construir query base
+        query = Kiosk.query
+        
+        # Aplicar filtros
+        if status:
+            query = query.filter(Kiosk.status.in_(status))
+        
+        if location_id and location_id.isdigit():
+            query = query.filter(Kiosk.location_id == int(location_id))
+        
+        if search:
+            search = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    Kiosk.name.ilike(search),
+                    Kiosk.serial_number.ilike(search)
+                )
             )
-        )
-    
-    # Ejecutar query
-    kiosks = query.all()
-    
-    # Filtrar por alert_level después de obtener los resultados
-    if alert_level:
-        kiosks = [k for k in kiosks if k.alert_level == alert_level]
-    
-    # Preparar datos para respuesta
-    kiosks_data = []
-    for kiosk in kiosks:
-        sensors = kiosk.sensors_data_dict
-        kiosks_data.append({
-            'id': kiosk.id,
-            'status': kiosk.status,
-            'name': kiosk.name,
-            'serial_number': kiosk.serial_number,
-            'location_id': kiosk.location_id,
-            'location': kiosk.location.name if kiosk.location else 'No asignada',
-            'ip_address': kiosk.ip_address or 'N/A',
-            'cpu_usage': sensors.get('cpu_usage', 0),
-            'ram_usage': sensors.get('ram_usage', 0),
-            'disk_usage': sensors.get('disk_usage', 0),
-            'temperature': sensors.get('temperature', 0),
-            'alert_level': kiosk.alert_level,
-            'last_connection': kiosk.last_connection.strftime('%d/%m/%Y %H:%M:%S') if kiosk.last_connection else 'Nunca'
+        
+        # Ejecutar query
+        kiosks = query.all()
+        
+        # Filtrar por alert_level después de obtener los resultados
+        if alert_level:
+            kiosks = [k for k in kiosks if k.alert_level == alert_level]
+        
+        # Preparar datos para respuesta
+        kiosks_data = []
+        for kiosk in kiosks:
+            try:
+                sensors = kiosk.sensors_data_dict
+                location_name = kiosk.location.name if kiosk.location else 'No asignada'
+                
+                kiosks_data.append({
+                    'id': kiosk.id,
+                    'status': kiosk.status or 'offline',
+                    'name': kiosk.name,
+                    'serial_number': kiosk.serial_number,
+                    'location_id': kiosk.location_id,
+                    'location': location_name,
+                    'ip_address': kiosk.ip_address or 'N/A',
+                    'cpu_usage': float(sensors.get('cpu_usage', 0)),
+                    'ram_usage': float(sensors.get('ram_usage', 0)),
+                    'disk_usage': float(sensors.get('disk_usage', 0)),
+                    'temperature': float(sensors.get('temperature', 0)),
+                    'alert_level': kiosk.alert_level or 'none',
+                    'last_connection': kiosk.last_connection.strftime('%d/%m/%Y %H:%M:%S') if kiosk.last_connection else 'Nunca'
+                })
+            except (ValueError, AttributeError, TypeError) as e:
+                current_app.logger.error(f"Error procesando kiosk {kiosk.id}: {str(e)}")
+                continue
+        
+        return jsonify({
+            'kiosks': kiosks_data,
+            'total': len(kiosks_data)
         })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error en filter_kiosks: {str(e)}")
+        return jsonify({
+            'error': 'Error al filtrar los kiosks',
+            'message': str(e)
+        }), 500
+
+@bp.route('/api/delete/<int:id>', methods=['DELETE'])
+def delete_kiosk(id):
+    """Eliminar un kiosk"""
+    kiosk = Kiosk.query.get_or_404(id)
     
-    return jsonify({
-        'kiosks': kiosks_data,
-        'total': len(kiosks_data)
-    }) 
+    # Eliminar registros relacionados
+    KioskLog.query.filter_by(kiosk_id=id).delete()
+    KioskLocation.query.filter_by(kiosk_id=id).delete()
+    
+    # Eliminar el kiosk
+    db.session.delete(kiosk)
+    db.session.commit()
+    
+    return jsonify({'success': True}) 

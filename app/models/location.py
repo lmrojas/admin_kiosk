@@ -43,7 +43,7 @@ class Location(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     
     # Relaciones
-    kiosks = db.relationship('Kiosk', backref='current_location', lazy=True)
+    kiosks = db.relationship('Kiosk', back_populates='location', lazy=True)
     
     def __repr__(self):
         return f'<Location {self.name}>'

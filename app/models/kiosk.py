@@ -25,6 +25,7 @@ class Kiosk(db.Model):
     location_id = db.Column(db.Integer, db.ForeignKey('locations.id'))
     state_id = db.Column(db.Integer, db.ForeignKey('states.id'))
     logs = db.relationship('KioskLog', backref='kiosk', lazy=True)
+    location = db.relationship('Location', foreign_keys=[location_id], back_populates='kiosks')
     
     # Umbrales de alerta
     THRESHOLDS = {
