@@ -6,6 +6,6 @@ from app.blueprints.location import bp as location_bp
 def init_blueprints(app):
     """Inicializa todos los blueprints de la aplicación"""
     app.register_blueprint(main_bp)
-    app.register_blueprint(kiosks_bp)
-    app.register_blueprint(location_bp)
+    app.register_blueprint(kiosks_bp, url_prefix='/kiosk')
+    app.register_blueprint(location_bp, url_prefix='/location')
     app.logger.info('Blueprints registrados') 

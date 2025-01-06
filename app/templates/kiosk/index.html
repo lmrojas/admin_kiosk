@@ -195,9 +195,7 @@
                                 <td>{{ kiosk.last_connection.strftime('%d/%m/%Y %H:%M:%S') if kiosk.last_connection else 'Nunca' }}</td>
                                 <td>
                                     <div class="action-buttons">
-                                        <a href="{{ url_for('kiosks.detail', id=kiosk.id) }}" 
-                                           class="btn btn-sm btn-outline-primary" 
-                                           title="Ver detalles">
+                                        <a href="{{ url_for('kiosks.detail', id=kiosk.id) }}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <button type="button" 
@@ -348,7 +346,7 @@ function applyFilters() {
                     const row = `
                         <tr data-kiosk-id="${kiosk.id}">
                             <td><span class="kiosk-status status-${kiosk.status}"></span>${kiosk.status.charAt(0).toUpperCase() + kiosk.status.slice(1)}</td>
-                            <td><a href="/kiosk/${kiosk.id}">${kiosk.name}</a></td>
+                            <td><a href="${url_for('kiosks.detail', id=kiosk.id)}">${kiosk.name}</a></td>
                             <td>${kiosk.serial_number}</td>
                             <td>${kiosk.location || 'No asignada'}</td>
                             <td>${kiosk.ip_address}</td>
@@ -359,7 +357,7 @@ function applyFilters() {
                             <td>${kiosk.last_connection}</td>
                             <td>
                                 <div class="action-buttons">
-                                    <a href="/kiosk/${kiosk.id}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
+                                    <a href="${url_for('kiosks.detail', id=kiosk.id)}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#assignLocationModal" data-kiosk-id="${kiosk.id}" title="Asignar ubicación">
@@ -550,6 +548,41 @@ function showNotification(type, message) {
     setTimeout(() => {
         alert.alert('close');
     }, 5000);
+}
+
+// URLs base para los endpoints
+const KIOSK_URL_BASE = "{{ url_for('kiosks.index') }}".replace(/\/$/, '');
+
+function updateKioskRow(kiosk) {
+    const cpuUsage = parseFloat(kiosk.cpu_usage) || 0;
+    const ramUsage = parseFloat(kiosk.ram_usage) || 0;
+    const diskUsage = parseFloat(kiosk.disk_usage) || 0;
+    const temperature = parseFloat(kiosk.temperature) || 0;
+
+    const row = `
+        <tr data-kiosk-id="${kiosk.id}">
+            <td><span class="kiosk-status status-${kiosk.status}"></span>${kiosk.status.charAt(0).toUpperCase() + kiosk.status.slice(1)}</td>
+            <td><a href="${KIOSK_URL_BASE}/${kiosk.id}">${kiosk.name}</a></td>
+            <td>${kiosk.serial_number}</td>
+            <td>${kiosk.location || 'No asignada'}</td>
+            <td>${kiosk.ip_address}</td>
+            <td><span class="badge metric-badge bg-${cpuUsage > 90 ? 'danger' : cpuUsage > 80 ? 'warning' : 'success'}">${cpuUsage.toFixed(1)}%</span></td>
+            <td><span class="badge metric-badge bg-${ramUsage > 95 ? 'danger' : ramUsage > 85 ? 'warning' : 'success'}">${ramUsage.toFixed(1)}%</span></td>
+            <td><span class="badge metric-badge bg-${diskUsage > 95 ? 'danger' : diskUsage > 85 ? 'warning' : 'success'}">${diskUsage.toFixed(1)}%</span></td>
+            <td><span class="badge metric-badge bg-${temperature > 40 ? 'danger' : temperature > 35 ? 'warning' : 'success'}">${temperature.toFixed(1)}°C</span></td>
+            <td>${kiosk.last_connection}</td>
+            <td>
+                <div class="action-buttons">
+                    <a href="${KIOSK_URL_BASE}/${kiosk.id}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#assignLocationModal" data-kiosk-id="${kiosk.id}" title="Asignar ubicación">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    return row;
 }
 </script>
 {% endblock %} 

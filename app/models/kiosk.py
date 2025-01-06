@@ -68,3 +68,94 @@ class Kiosk(db.Model):
     
     def __repr__(self):
         return f'<Kiosk {self.name}>' 
+    
+    def calculate_alerts(self):
+        """Calcula las alertas basadas en los sensores"""
+        alerts = []
+        
+        if not self.sensors_data:
+            return alerts
+            
+        # CPU
+        cpu = float(self.sensors_data.get('cpu_usage', 0))
+        if cpu > 90:
+            alerts.append({
+                'type': 'danger',
+                'message': f'CPU crítico: {cpu:.1f}%'
+            })
+        elif cpu > 80:
+            alerts.append({
+                'type': 'warning',
+                'message': f'CPU alto: {cpu:.1f}%'
+            })
+        
+        # RAM
+        ram = float(self.sensors_data.get('ram_usage', 0))
+        if ram > 95:
+            alerts.append({
+                'type': 'danger',
+                'message': f'RAM crítica: {ram:.1f}%'
+            })
+        elif ram > 85:
+            alerts.append({
+                'type': 'warning',
+                'message': f'RAM alta: {ram:.1f}%'
+            })
+        
+        # Disco
+        disk = float(self.sensors_data.get('disk_usage', 0))
+        if disk > 95:
+            alerts.append({
+                'type': 'danger',
+                'message': f'Disco crítico: {disk:.1f}%'
+            })
+        elif disk > 85:
+            alerts.append({
+                'type': 'warning',
+                'message': f'Disco alto: {disk:.1f}%'
+            })
+        
+        # Temperatura
+        temp = float(self.sensors_data.get('temperature', 0))
+        if temp > 40:
+            alerts.append({
+                'type': 'danger',
+                'message': f'Temperatura crítica: {temp:.1f}°C'
+            })
+        elif temp > 35:
+            alerts.append({
+                'type': 'warning',
+                'message': f'Temperatura alta: {temp:.1f}°C'
+            })
+        
+        # Red
+        network = self.sensors_data.get('network', {})
+        latency = float(network.get('latency', 0))
+        if latency > 150:
+            alerts.append({
+                'type': 'danger',
+                'message': f'Latencia crítica: {latency:.0f}ms'
+            })
+        elif latency > 100:
+            alerts.append({
+                'type': 'warning',
+                'message': f'Latencia alta: {latency:.0f}ms'
+            })
+        
+        # UPS
+        ups = self.sensors_data.get('ups', {})
+        if ups.get('status') == 'battery':
+            battery = float(ups.get('battery_level', 0))
+            runtime = int(ups.get('estimated_runtime', 0))
+            if battery < 20:
+                alerts.append({
+                    'type': 'danger',
+                    'message': f'Batería crítica: {battery:.1f}% ({runtime}min restantes)'
+                })
+            elif battery < 50:
+                alerts.append({
+                    'type': 'warning',
+                    'message': f'En batería: {battery:.1f}% ({runtime}min restantes)'
+                })
+        
+        return alerts 

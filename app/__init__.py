@@ -57,3 +57,13 @@ def create_app(config_name=None):
         app.logger.info('Configuraciones inicializadas')
     
     return app 
+
+def register_blueprints(app):
+    """Registrar blueprints"""
+    from app.blueprints.main import bp as main_bp
+    from app.blueprints.kiosk import bp as kiosk_bp
+    from app.blueprints.location import bp as location_bp
+    
+    app.register_blueprint(main_bp)
+    app.register_blueprint(kiosk_bp, url_prefix='/kiosk')
+    app.register_blueprint(location_bp, url_prefix='/location') 

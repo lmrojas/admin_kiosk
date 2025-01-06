@@ -2,10 +2,11 @@ from flask import render_template, jsonify, request, current_app
 from app.blueprints.kiosk import bp
 from app.models.kiosk import Kiosk
 from app.models.state import State
-from app.models.location import Location
+from app.models.location import Location, KioskLocation
 from app.models.kiosk_log import KioskLog
 from app.models.settings import Settings
 from app.extensions import db
+from datetime import datetime
 
 @bp.route('/')
 def index():
@@ -18,6 +19,21 @@ def index():
                          kiosks=kiosks,
                          states=states,
                          locations=locations)
+
+@bp.route('/<int:id>')
+def detail(id):
+    """Vista detallada de un kiosk"""
+    current_app.logger.info(f'Accediendo a detalles del kiosk {id}')
+    kiosk = Kiosk.query.get_or_404(id)
+    logs = KioskLog.query.filter_by(kiosk_id=id).order_by(KioskLog.created_at.desc()).limit(50).all()
+    locations = Location.query.all()
+    history = KioskLocation.query.filter_by(kiosk_id=id).order_by(KioskLocation.start_date.desc()).all()
+    
+    return render_template('kiosk/detail.html',
+                         kiosk=kiosk,
+                         logs=logs,
+                         locations=locations,
+                         history=history)
 
 @bp.route('/logs')
 def logs():
