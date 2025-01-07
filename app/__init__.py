@@ -16,8 +16,14 @@ def create_app(config_name=None):
         CACHE_TYPE='simple',
         CACHE_DEFAULT_TIMEOUT=300,
         JSON_SORT_KEYS=False,
-        MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max-limit
+        MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max-limit
+        UPLOAD_FOLDER=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads'),
+        LOG_DIR=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
     )
+    
+    # Asegurar que existan los directorios necesarios
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['LOG_DIR'], exist_ok=True)
     
     # Configurar logger
     setup_logger(app)
@@ -29,6 +35,7 @@ def create_app(config_name=None):
     
     # Registrar blueprints
     init_blueprints(app)
+    app.logger.info('Blueprints registrados')
     
     # Agregar filtros para las plantillas
     @app.template_filter('datetime')
@@ -47,6 +54,7 @@ def create_app(config_name=None):
         from app.models.action import Action
         from app.models.kiosk_log import KioskLog
         from app.models.settings import Settings
+        from app.models.kiosk_location import KioskLocation
         
         # Crear todas las tablas
         db.create_all()

@@ -2,7 +2,8 @@ from flask import render_template, jsonify, request, current_app
 from app.blueprints.kiosk import bp
 from app.models.kiosk import Kiosk
 from app.models.state import State
-from app.models.location import Location, KioskLocation
+from app.models.location import Location
+from app.models.kiosk_location import KioskLocation
 from app.models.kiosk_log import KioskLog
 from app.models.settings import Settings
 from app.extensions import db

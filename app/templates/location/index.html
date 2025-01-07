@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layouts/base.html" %}
 
 {% block title %}Ubicaciones{% endblock %}
 
@@ -126,18 +126,11 @@
                             </td>
                             <td>
                                 <div class="location-actions">
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-primary"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editLocationModal"
-                                            data-location-id="{{ location.id }}"
-                                            data-location-name="{{ location.name }}"
-                                            data-location-address="{{ location.address }}"
-                                            data-location-lat="{{ location.latitude }}"
-                                            data-location-lng="{{ location.longitude }}"
-                                            title="Editar">
+                                    <a href="{{ url_for('location.edit', id=location.id) }}"
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="Editar">
                                         <i class="fas fa-edit"></i>
-                                    </button>
+                                    </a>
                                     <button type="button"
                                             class="btn btn-sm btn-outline-danger"
                                             onclick="deleteLocation('{{ location.id }}')"
@@ -156,7 +149,7 @@
 
 <!-- Modal para Agregar Ubicación -->
 <div class="modal fade" id="addLocationModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Agregar Ubicación</h5>
@@ -164,26 +157,45 @@
             </div>
             <form id="addLocationForm">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Nombre</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="address" class="form-label">Dirección</label>
-                        <input type="text" class="form-control" id="address" name="address" required>
-                    </div>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="latitude" class="form-label">Latitud</label>
-                                <input type="number" class="form-control" id="latitude" name="latitude" step="any" required>
+                                <label for="name" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="address" class="form-label">Dirección</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="address" name="address" required>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="searchAddress()">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="openSearchMap()">
+                                        <i class="fas fa-map-marker-alt"></i> Buscar en Mapa
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Descripción</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="latitude" class="form-label">Latitud</label>
+                                        <input type="number" step="any" class="form-control" id="latitude" name="latitude" required readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="longitude" class="form-label">Longitud</label>
+                                        <input type="number" step="any" class="form-control" id="longitude" name="longitude" required readonly>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="longitude" class="form-label">Longitud</label>
-                                <input type="number" class="form-control" id="longitude" name="longitude" step="any" required>
-                            </div>
+                            <div id="locationMap" style="height: 400px;"></div>
                         </div>
                     </div>
                 </div>
@@ -268,6 +280,35 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para Búsqueda en Mapa -->
+<div class="modal fade" id="searchMapModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Buscar Ubicación en Mapa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="searchMapAddress" placeholder="Buscar dirección...">
+                            <button class="btn btn-outline-secondary" type="button" onclick="searchMapAddress()">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="searchMap" style="height: 600px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="useSelectedLocation()">Usar Ubicación</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -275,23 +316,18 @@
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
 <script>
-$(document).ready(function() {
-    console.log('Document ready');
-    
-    // Inicializar DataTable
-    const table = $('#locationsTable').DataTable({
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
-        },
-        order: [[0, 'asc']],
-        pageLength: 25
-    });
-    
-    // Inicializar mapa
-    const map = L.map('map');
+let map;
+let marker;
+let searchMap;
+let searchMarker;
+const geocoder = L.Control.Geocoder.nominatim();
+
+// Inicializar mapa principal
+function initMainMap() {
+    const mainMap = L.map('map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    }).addTo(mainMap);
     
     // Agregar marcadores para cada ubicación
     const markers = [];
@@ -304,25 +340,113 @@ $(document).ready(function() {
                 {{ location.address }}<br>
                 <small class="text-muted">{{ location.kiosks|length }} kioscos</small>
             `)
-            .addTo(map));
+            .addTo(mainMap));
         
         bounds.extend([{{ location.latitude }}, {{ location.longitude }}]);
     {% endfor %}
     
     if (markers.length > 0) {
-        map.fitBounds(bounds);
+        mainMap.fitBounds(bounds);
     } else {
-        map.setView([0, 0], 2);
+        mainMap.setView([0, 0], 2);
     }
+}
+
+function initMap() {
+    // Coordenadas iniciales (centro de la ciudad)
+    const initialLocation = [-34.6037, -58.3816];
     
-    // Agregar ubicación
+    // Inicializar mapa
+    map = L.map('locationMap').setView(initialLocation, 13);
+    
+    // Agregar capa de OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Agregar marcador inicial
+    marker = L.marker(initialLocation, {
+        draggable: true
+    }).addTo(map);
+    
+    // Actualizar coordenadas cuando se mueve el marcador
+    marker.on('dragend', function(e) {
+        const position = marker.getLatLng();
+        updateCoordinates(position.lat, position.lng);
+        
+        // Obtener dirección desde coordenadas
+        geocoder.reverse(position, map.options.crs.scale(map.getZoom()), results => {
+            if (results && results.length > 0) {
+                document.getElementById('address').value = results[0].name;
+            }
+        });
+    });
+    
+    // Permitir hacer clic en el mapa para mover el marcador
+    map.on('click', function(e) {
+        marker.setLatLng(e.latlng);
+        updateCoordinates(e.latlng.lat, e.latlng.lng);
+        
+        // Obtener dirección desde coordenadas
+        geocoder.reverse(e.latlng, map.options.crs.scale(map.getZoom()), results => {
+            if (results && results.length > 0) {
+                document.getElementById('address').value = results[0].name;
+            }
+        });
+    });
+}
+
+function updateCoordinates(lat, lng) {
+    document.getElementById('latitude').value = lat.toFixed(6);
+    document.getElementById('longitude').value = lng.toFixed(6);
+}
+
+function searchAddress() {
+    const address = document.getElementById('address').value;
+    if (!address) return;
+    
+    geocoder.geocode(address, results => {
+        if (results && results.length > 0) {
+            const result = results[0];
+            const latlng = result.center;
+            
+            map.setView(latlng, 16);
+            marker.setLatLng(latlng);
+            updateCoordinates(latlng.lat, latlng.lng);
+        }
+    });
+}
+
+// Inicializar mapa cuando se abre el modal
+document.getElementById('addLocationModal').addEventListener('shown.bs.modal', function () {
+    if (!map) {
+        initMap();
+    }
+    // Forzar redimensionamiento del mapa
+    map.invalidateSize();
+});
+
+// Inicializar mapa principal cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    initMainMap();
+    
+    // Inicializar DataTable
+    $('#locationsTable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
+        },
+        pageLength: 25
+    });
+    
+    // Manejar envío del formulario
     $('#addLocationForm').on('submit', function(e) {
         e.preventDefault();
         const formData = {
             name: $('#name').val(),
             address: $('#address').val(),
             latitude: parseFloat($('#latitude').val()),
-            longitude: parseFloat($('#longitude').val())
+            longitude: parseFloat($('#longitude').val()),
+            description: $('#description').val()
         };
 
         if (!formData.name || !formData.address || isNaN(formData.latitude) || isNaN(formData.longitude)) {
@@ -336,101 +460,15 @@ $(document).ready(function() {
             contentType: 'application/json',
             data: JSON.stringify(formData),
             success: function(response) {
-                if (response.status === 'success') {
+                if (response.success) {
                     $('#addLocationModal').modal('hide');
                     window.location.reload();
                 } else {
-                    alert(response.message || 'Error al guardar la ubicación');
+                    alert(response.error || 'Error al guardar la ubicación');
                 }
             },
             error: function(xhr) {
-                alert('Error al guardar la ubicación: ' + (xhr.responseJSON?.message || 'Error desconocido'));
-            }
-        });
-    });
-    
-    // Cargar datos para editar ubicación
-    $('#editLocationModal').on('show.bs.modal', function(event) {
-        const button = $(event.relatedTarget);
-        const locationId = button.data('location-id');
-        const name = button.data('location-name');
-        const address = button.data('location-address');
-        const lat = button.data('location-lat');
-        const lng = button.data('location-lng');
-        
-        $('#edit_location_id').val(locationId);
-        $('#edit_name').val(name);
-        $('#edit_address').val(address);
-        $('#edit_latitude').val(lat);
-        $('#edit_longitude').val(lng);
-    });
-    
-    // Actualizar ubicación
-    $('#updateLocationBtn').click(function() {
-        const locationId = $('#edit_location_id').val();
-        const formData = {
-            name: $('#edit_name').val(),
-            address: $('#edit_address').val(),
-            latitude: parseFloat($('#edit_latitude').val()),
-            longitude: parseFloat($('#edit_longitude').val())
-        };
-        
-        $.ajax({
-            url: `/location/api/update/${locationId}`,
-            method: 'PUT',
-            contentType: 'application/json',
-            data: JSON.stringify(formData),
-            success: function(response) {
-                showNotification('success', 'Ubicación actualizada exitosamente');
-                $('#editLocationModal').modal('hide');
-                location.reload();
-            },
-            error: function(xhr) {
-                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al actualizar la ubicación';
-                showNotification('danger', message);
-            }
-        });
-    });
-    
-    // Cargar kioscos de una ubicación
-    $('#viewKiosksModal').on('show.bs.modal', function(event) {
-        const button = $(event.relatedTarget);
-        const locationId = button.data('location-id');
-        const locationName = button.data('location-name');
-        
-        $('#locationName').text(locationName);
-        
-        $.ajax({
-            url: `/location/api/kiosks/${locationId}`,
-            method: 'GET',
-            success: function(response) {
-                const tbody = $('#kiosksTableBody');
-                tbody.empty();
-                
-                response.kiosks.forEach(kiosk => {
-                    const row = `
-                        <tr>
-                            <td>${kiosk.name}</td>
-                            <td>${kiosk.serial_number}</td>
-                            <td>
-                                <span class="badge bg-${kiosk.status === 'online' ? 'success' : 'danger'}">
-                                    ${kiosk.status}
-                                </span>
-                            </td>
-                            <td>${kiosk.last_connection ? new Date(kiosk.last_connection).toLocaleString() : 'Nunca'}</td>
-                            <td>
-                                <a href="/kiosk/${kiosk.id}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </td>
-                        </tr>
-                    `;
-                    tbody.append(row);
-                });
-            },
-            error: function(xhr) {
-                const message = xhr.responseJSON ? xhr.responseJSON.message : 'Error al cargar los kioscos';
-                showNotification('danger', message);
+                alert('Error al guardar la ubicación: ' + (xhr.responseJSON?.error || 'Error desconocido'));
             }
         });
     });
@@ -463,6 +501,85 @@ function showNotification(type, message) {
     setTimeout(() => {
         alert.alert('close');
     }, 5000);
+}
+
+function openSearchMap() {
+    const searchMapModal = new bootstrap.Modal(document.getElementById('searchMapModal'));
+    searchMapModal.show();
+    
+    // Inicializar mapa de búsqueda si no existe
+    if (!searchMap) {
+        searchMap = L.map('searchMap').setView([-34.6037, -58.3816], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(searchMap);
+        
+        // Agregar marcador arrastrable
+        searchMarker = L.marker([-34.6037, -58.3816], {
+            draggable: true
+        }).addTo(searchMap);
+        
+        // Actualizar coordenadas al arrastrar
+        searchMarker.on('dragend', function(e) {
+            const position = searchMarker.getLatLng();
+            updateSearchCoordinates(position.lat, position.lng);
+        });
+        
+        // Permitir hacer clic en el mapa
+        searchMap.on('click', function(e) {
+            searchMarker.setLatLng(e.latlng);
+            updateSearchCoordinates(e.latlng.lat, e.latlng.lng);
+        });
+    }
+    
+    // Forzar redimensionamiento
+    setTimeout(() => {
+        searchMap.invalidateSize();
+    }, 250);
+}
+
+function searchMapAddress() {
+    const address = document.getElementById('searchMapAddress').value;
+    if (!address) return;
+    
+    geocoder.geocode(address, results => {
+        if (results && results.length > 0) {
+            const result = results[0];
+            const latlng = result.center;
+            
+            searchMap.setView(latlng, 16);
+            searchMarker.setLatLng(latlng);
+            updateSearchCoordinates(latlng.lat, latlng.lng);
+        }
+    });
+}
+
+function updateSearchCoordinates(lat, lng) {
+    // Obtener dirección desde coordenadas
+    geocoder.reverse([lat, lng], searchMap.options.crs.scale(searchMap.getZoom()), results => {
+        if (results && results.length > 0) {
+            document.getElementById('searchMapAddress').value = results[0].name;
+        }
+    });
+}
+
+function useSelectedLocation() {
+    const position = searchMarker.getLatLng();
+    const address = document.getElementById('searchMapAddress').value;
+    
+    // Actualizar formulario principal
+    document.getElementById('address').value = address;
+    document.getElementById('latitude').value = position.lat.toFixed(6);
+    document.getElementById('longitude').value = position.lng.toFixed(6);
+    
+    // Actualizar mapa pequeño
+    if (map && marker) {
+        map.setView(position, 16);
+        marker.setLatLng(position);
+    }
+    
+    // Cerrar modal
+    bootstrap.Modal.getInstance(document.getElementById('searchMapModal')).hide();
 }
 </script>
 {% endblock %} 
